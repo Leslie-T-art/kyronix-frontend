@@ -233,6 +233,30 @@ export interface AuditEvent {
   timestamp: string;
 }
 
+export interface AuthAuditEvent {
+  id: string;
+  eventType: string;
+  action: string;
+  serviceName: string;
+  entityType: string;
+  entityId: string | null;
+  businessReference: string | null;
+  userId: string | null;
+  username: string | null;
+  roles: string | null;
+  permissions: string | null;
+  result: string;
+  failureReason: string | null;
+  requestMethod: string;
+  requestPath: string;
+  sourceIp: string;
+  userAgent: string;
+  correlationId: string;
+  oldValues: string | null;
+  newValues: string | null;
+  occurredAt: string;
+}
+
 export interface AppNotification {
   id: string;
   title: string;

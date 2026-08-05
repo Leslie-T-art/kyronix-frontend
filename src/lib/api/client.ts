@@ -1,6 +1,7 @@
 import type {
   AdminUserPayload,
   AdminUserRecord,
+  AuthAuditEvent,
   Branch,
   BranchPayload,
   Department,
@@ -248,6 +249,10 @@ export function authMe(token: string): Promise<ApiResponse<AuthPayload>> {
       Authorization: `Bearer ${token}`
     }
   });
+}
+
+export function listAuthAuditEvents(token: string): Promise<ApiResponse<AuthAuditEvent[]>> {
+  return authServiceRequest<AuthAuditEvent[]>(token, '/auth/audit-events', { method: 'GET' });
 }
 
 function authServiceRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {
