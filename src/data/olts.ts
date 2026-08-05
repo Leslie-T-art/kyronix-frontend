@@ -1,0 +1,147 @@
+import type { OltsException } from '../types';
+
+export const oltsExceptions: OltsException[] = [
+{
+  id: 'olts-1',
+  reference: 'OLTS-2026-04411',
+  branch: 'Borrowdale',
+  transactionType: 'RTGS Outward',
+  amount: 184500,
+  currency: 'USD',
+  exceptionReason: 'Limit override without dual authorisation',
+  status: 'Escalated',
+  raisedDate: '2026-08-03',
+  owner: 'T. Mabhena'
+},
+{
+  id: 'olts-2',
+  reference: 'OLTS-2026-04398',
+  branch: 'Samora Machel',
+  transactionType: 'Cash Withdrawal',
+  amount: 32000,
+  currency: 'USD',
+  exceptionReason: 'Teller till variance at end of day',
+  status: 'Under Review',
+  raisedDate: '2026-08-03',
+  owner: 'R. Chikafu'
+},
+{
+  id: 'olts-3',
+  reference: 'OLTS-2026-04372',
+  branch: 'Bulawayo Main',
+  transactionType: 'ZIPIT Transfer',
+  amount: 8750,
+  currency: 'USD',
+  exceptionReason: 'Beneficiary account not KYC verified',
+  status: 'Open',
+  raisedDate: '2026-08-02',
+  owner: 'S. Ndlovu'
+},
+{
+  id: 'olts-4',
+  reference: 'OLTS-2026-04355',
+  branch: 'Mutare',
+  transactionType: 'Forex Purchase',
+  amount: 96200,
+  currency: 'USD',
+  exceptionReason: 'Rate deviation above tolerance band',
+  status: 'Under Review',
+  raisedDate: '2026-08-01',
+  owner: 'P. Chirwa'
+},
+{
+  id: 'olts-5',
+  reference: 'OLTS-2026-04340',
+  branch: 'Gweru',
+  transactionType: 'Loan Disbursement',
+  amount: 250000,
+  currency: 'USD',
+  exceptionReason: 'Collateral perfection outstanding at drawdown',
+  status: 'Escalated',
+  raisedDate: '2026-07-31',
+  owner: 'M. Sibanda'
+},
+{
+  id: 'olts-6',
+  reference: 'OLTS-2026-04321',
+  branch: 'Chinhoyi',
+  transactionType: 'Mobile Banking',
+  amount: 1450,
+  currency: 'USD',
+  exceptionReason: 'Duplicate transaction posted within 60 seconds',
+  status: 'Resolved',
+  raisedDate: '2026-07-30',
+  owner: 'L. Moyo'
+},
+{
+  id: 'olts-7',
+  reference: 'OLTS-2026-04309',
+  branch: 'Masvingo',
+  transactionType: 'Account Opening',
+  amount: 0,
+  currency: 'USD',
+  exceptionReason: 'Source of funds declaration missing',
+  status: 'Open',
+  raisedDate: '2026-07-29',
+  owner: 'N. Dube'
+},
+{
+  id: 'olts-8',
+  reference: 'OLTS-2026-04288',
+  branch: 'Victoria Falls',
+  transactionType: 'Card Settlement',
+  amount: 41800,
+  currency: 'USD',
+  exceptionReason: 'Unreconciled settlement leg older than 48 hours',
+  status: 'Under Review',
+  raisedDate: '2026-07-28',
+  owner: 'K. Mutasa'
+},
+{
+  id: 'olts-9',
+  reference: 'OLTS-2026-04270',
+  branch: 'Kwekwe',
+  transactionType: 'RTGS Inward',
+  amount: 67400,
+  currency: 'USD',
+  exceptionReason: 'Narration mismatch against payment instruction',
+  status: 'Resolved',
+  raisedDate: '2026-07-27',
+  owner: 'F. Zhou'
+},
+{
+  id: 'olts-10',
+  reference: 'OLTS-2026-04251',
+  branch: 'Avondale',
+  transactionType: 'Standing Order',
+  amount: 5200,
+  currency: 'USD',
+  exceptionReason: 'Instruction executed after mandate expiry',
+  status: 'Open',
+  raisedDate: '2026-07-26',
+  owner: 'B. Chigumba'
+},
+{
+  id: 'olts-11',
+  reference: 'OLTS-2026-04233',
+  branch: 'Hwange',
+  transactionType: 'Cash Deposit',
+  amount: 118000,
+  currency: 'USD',
+  exceptionReason: 'Large cash deposit without STR assessment',
+  status: 'Escalated',
+  raisedDate: '2026-07-25',
+  owner: 'G. Nyathi'
+},
+{
+  id: 'olts-12',
+  reference: 'OLTS-2026-04210',
+  branch: 'Chitungwiza',
+  transactionType: 'Internal Transfer',
+  amount: 23400,
+  currency: 'USD',
+  exceptionReason: 'Suspense account cleared outside window',
+  status: 'Resolved',
+  raisedDate: '2026-07-24',
+  owner: 'A. Marufu'
+}];
