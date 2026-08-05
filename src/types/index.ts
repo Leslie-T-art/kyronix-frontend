@@ -1,8 +1,12 @@
-export type Role = 'Admin' | 'RiskManager' | 'Auditor' | 'ProcessOwner' | 'Staff';
+export type Role = 'Admin' | 'Head' | 'RiskManager' | 'Auditor' | 'ProcessOwner' | 'Staff';
 
 export type EngineKey =
 'dashboard' |
 'notifications' |
+'departments' |
+'branches' |
+'users' |
+'rolesConfig' |
 'olts' |
 'audit' |
 'kri' |
@@ -16,9 +20,16 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  username: string;
   role: Role;
   unit: string;
   initials: string;
+  backendRoles: string[];
+  permissions: string[];
+  departmentId?: string;
+  branchId?: string;
+  issuedAt?: string;
+  expiresAt?: string;
 }
 
 export interface OltsException {
@@ -32,6 +43,112 @@ export interface OltsException {
   status: 'Open' | 'Under Review' | 'Escalated' | 'Resolved';
   raisedDate: string;
   owner: string;
+}
+
+export interface OltsIncident {
+  id: string;
+  incidentId: string;
+  departmentId: string;
+  branchId: string;
+  incidentDate: string;
+  discoveryDate: string;
+  severity: string;
+  authorizationStatus: string;
+  status: string;
+  grossLoss: number;
+  recoveries: number;
+  netLoss: number;
+  potentialLoss: number;
+  inputterUserId: string;
+  responsiblePersonId: string;
+  responsiblePersonName: string;
+  createdAt: string;
+  createdBy: string;
+  lossCategory?: string;
+  eventType?: string;
+  description?: string;
+  currencyCode?: string;
+}
+
+export interface OltsIncidentPayload {
+  incidentDate: string;
+  discoveryDate: string;
+  branchId: string;
+  departmentId: string;
+  lossCategory: string;
+  eventType: string;
+  severity: string;
+  description: string;
+  currencyCode: string;
+  grossLoss: number;
+  recoveries: number;
+  potentialLoss: number;
+}
+
+export interface Department {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+}
+
+export interface DepartmentPayload {
+  code: string;
+  name: string;
+  active: boolean;
+}
+
+export interface Branch {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+}
+
+export interface BranchPayload {
+  code: string;
+  name: string;
+  active: boolean;
+}
+
+export interface RoleConfig {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
+export interface RoleConfigPayload {
+  code: string;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
+export interface AdminUserRecord {
+  id: string;
+  username: string;
+  fullName: string;
+  active: boolean;
+  locked: boolean;
+  departmentId: string;
+  branchId: string;
+  roles: string[];
+  permissions: string[];
+  password?: string;
+}
+
+export interface AdminUserPayload {
+  username: string;
+  fullName: string;
+  password: string;
+  active: boolean;
+  locked: boolean;
+  departmentId: string;
+  branchId: string;
+  roles: string[];
+  permissions: string[];
 }
 
 export interface Kri {

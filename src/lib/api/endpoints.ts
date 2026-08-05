@@ -4,6 +4,10 @@
  * are permitted anywhere else in the codebase.
  */
 export const ENDPOINTS = {
+  auth: {
+    login: '/auth/login',
+    me: '/auth/me'
+  },
   dashboard: {
     summary: '/api/bff/dashboard/summary'
   },

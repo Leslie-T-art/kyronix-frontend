@@ -1,6 +1,6 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { ChevronsLeftIcon, ChevronsRightIcon, LogOutIcon } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { ChevronsLeftIcon, ChevronsRightIcon, LogOutIcon, UserCircle2Icon } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../contexts/AuthContext';
 import { canAccess, scopeLabel } from '../../lib/auth/roles';
@@ -15,6 +15,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarProps) {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   if (!user) return null;
 
   const items = NAV_ITEMS.filter((item) => canAccess(user.role, item.key));
@@ -100,6 +101,21 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
             </div>
           }
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            navigate('/profile');
+            onNavigate?.();
+          }}
+          className={cn(
+            'mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-navy',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy',
+            collapsed && 'justify-center px-0'
+          )}>
+          <UserCircle2Icon className="h-4 w-4 shrink-0" />
+          {!collapsed && 'Profile'}
+        </button>
 
         <button
           type="button"

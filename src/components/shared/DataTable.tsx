@@ -40,7 +40,7 @@ interface DataTableProps<T> {
   pageSize?: number;
 }
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 export function DataTable<T>({
   columns,
@@ -132,7 +132,7 @@ export function DataTable<T>({
   const filterColumns = roleColumns.filter((column) => column.filterable);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+    <div className="rounded-xl border border-zinc-200 bg-white">
       <div className="flex flex-col gap-3 border-b border-zinc-200 p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">

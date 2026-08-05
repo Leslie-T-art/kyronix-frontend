@@ -8,6 +8,7 @@ interface FormDrawerProps {
   subtitle?: string;
   formId: string;
   submitLabel?: string;
+  submitDisabled?: boolean;
   onClose: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   children: React.ReactNode;
@@ -20,6 +21,7 @@ export function FormDrawer({
   subtitle,
   formId,
   submitLabel = 'Save',
+  submitDisabled = false,
   onClose,
   onSubmit,
   children
@@ -36,7 +38,7 @@ export function FormDrawer({
           <Button variant="outline" size="sm" onClick={onClose} type="button">
             Cancel
           </Button>
-          <Button variant="primary" size="sm" type="submit" form={formId}>
+          <Button variant="primary" size="sm" type="submit" form={formId} disabled={submitDisabled}>
             {submitLabel}
           </Button>
         </div>

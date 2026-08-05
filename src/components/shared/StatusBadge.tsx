@@ -26,14 +26,23 @@ const STATUS_TONE: Record<string, SemanticTone> = {
   Red: 'critical',
   // process flows
   Draft: 'neutral',
+  DRAFT: 'neutral',
   'In Review': 'info',
+  PENDING_AUTHORIZATION: 'warning',
   Approved: 'success',
+  APPROVED: 'success',
+  REJECTED: 'critical',
+  RETURNED_FOR_CORRECTION: 'warning',
   Expired: 'critical',
   // self assessment
   'Not Started': 'neutral',
   'In Progress': 'info',
   Submitted: 'success',
-  Overdue: 'critical'
+  Overdue: 'critical',
+  Active: 'success',
+  Inactive: 'neutral',
+  Locked: 'critical',
+  Unlocked: 'success'
 };
 
 const TONE_CLASS: Record<SemanticTone, string> = {

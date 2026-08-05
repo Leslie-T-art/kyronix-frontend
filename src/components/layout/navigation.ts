@@ -1,10 +1,14 @@
 import {
   ClipboardCheckIcon,
+  Building2Icon,
+  BuildingIcon,
   FileSearchIcon,
   GaugeIcon,
   LayoutDashboardIcon,
+  KeyRoundIcon,
   ShieldAlertIcon,
   ActivityIcon,
+  UsersIcon,
   WorkflowIcon,
   BellIcon } from
 'lucide-react';
@@ -21,6 +25,10 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
 { key: 'dashboard', label: 'Dashboard', to: '/dashboard', icon: LayoutDashboardIcon },
 { key: 'notifications', label: 'Notifications', to: '/notifications', icon: BellIcon },
+{ key: 'departments', label: 'Departments', to: '/departments', icon: Building2Icon },
+{ key: 'branches', label: 'Branches', to: '/branches', icon: BuildingIcon },
+{ key: 'users', label: 'Users', to: '/users', icon: UsersIcon },
+{ key: 'rolesConfig', label: 'Roles configuration', to: '/roles-configuration', icon: KeyRoundIcon },
 { key: 'olts', label: 'OLTS', to: '/olts', icon: ActivityIcon },
 { key: 'audit', label: 'Audit', to: '/audit', icon: FileSearchIcon },
 { key: 'kri', label: 'KRI', to: '/kri', icon: GaugeIcon },

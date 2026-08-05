@@ -8,7 +8,7 @@ export const dashboardSummary: DashboardSummary = {
     value: '42',
     delta: 8,
     tone: 'warning',
-    roles: ['Admin', 'RiskManager', 'Auditor', 'ProcessOwner', 'Staff']
+    roles: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner', 'Staff']
   },
   {
     key: 'kri-breached',
@@ -16,7 +16,7 @@ export const dashboardSummary: DashboardSummary = {
     value: '3',
     delta: 50,
     tone: 'critical',
-    roles: ['Admin', 'RiskManager', 'Auditor', 'ProcessOwner', 'Staff']
+    roles: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner', 'Staff']
   },
   {
     key: 'overdue-actions',
@@ -24,7 +24,7 @@ export const dashboardSummary: DashboardSummary = {
     value: '17',
     delta: -12,
     tone: 'critical',
-    roles: ['Admin', 'RiskManager', 'ProcessOwner']
+    roles: ['Admin', 'Head', 'RiskManager', 'ProcessOwner']
   },
   {
     key: 'audit-findings',
@@ -32,7 +32,7 @@ export const dashboardSummary: DashboardSummary = {
     value: '28',
     delta: -5,
     tone: 'info',
-    roles: ['Admin', 'RiskManager', 'Auditor']
+    roles: ['Admin', 'Head', 'RiskManager', 'Auditor']
   },
   {
     key: 'rcsa-due',
@@ -40,7 +40,7 @@ export const dashboardSummary: DashboardSummary = {
     value: '6',
     delta: 20,
     tone: 'warning',
-    roles: ['Admin', 'RiskManager', 'ProcessOwner', 'Staff']
+    roles: ['Admin', 'Head', 'RiskManager', 'ProcessOwner', 'Staff']
   },
   {
     key: 'olts-exceptions',
@@ -48,7 +48,7 @@ export const dashboardSummary: DashboardSummary = {
     value: '124',
     delta: 3,
     tone: 'neutral',
-    roles: ['Admin', 'RiskManager', 'Auditor', 'ProcessOwner']
+    roles: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner']
   }],
 
   heatmap: [

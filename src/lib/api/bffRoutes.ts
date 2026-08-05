@@ -21,7 +21,7 @@ interface BffRoute {
   handler: (context: BffContext) => unknown;
 }
 
-const ALL: Role[] = ['Admin', 'RiskManager', 'Auditor', 'ProcessOwner', 'Staff'];
+const ALL: Role[] = ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner', 'Staff'];
 
 /** Data scoping applied at the BFF boundary — never in the browser. */
 function scopeByUnit<T extends {unit?: string;}>(rows: T[], context: BffContext): T[] {
@@ -56,13 +56,13 @@ const ROUTES: Record<string, BffRoute> = {
   },
   [ENDPOINTS.olts.list]: {
     engine: 'OLTS',
-    roles: ['Admin', 'RiskManager', 'Auditor', 'ProcessOwner'],
+    roles: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner'],
     handler: (context) =>
     context.role === 'ProcessOwner' ? oltsExceptions.slice(0, 8) : oltsExceptions
   },
   [ENDPOINTS.audit.trail]: {
     engine: 'Audit',
-    roles: ['Admin', 'RiskManager', 'Auditor'],
+    roles: ['Admin', 'Head', 'RiskManager', 'Auditor'],
     handler: () => auditEvents
   },
   [ENDPOINTS.kri.list]: {
@@ -72,17 +72,17 @@ const ROUTES: Record<string, BffRoute> = {
   },
   [ENDPOINTS.riskRegister.list]: {
     engine: 'Risk Register',
-    roles: ['Admin', 'RiskManager', 'Auditor', 'ProcessOwner'],
+    roles: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner'],
     handler: (context) => scopeByUnit(riskEntries, context)
   },
   [ENDPOINTS.processFlows.list]: {
     engine: 'Process Flows',
-    roles: ['Admin', 'RiskManager', 'Auditor', 'ProcessOwner'],
+    roles: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner'],
     handler: () => processFlows
   },
   [ENDPOINTS.selfAssessment.list]: {
     engine: 'Self Assessment',
-    roles: ['Admin', 'RiskManager', 'ProcessOwner', 'Staff'],
+    roles: ['Admin', 'Head', 'RiskManager', 'ProcessOwner', 'Staff'],
     handler: (context) =>
     context.role === 'Staff' ? selfAssessments.slice(0, 4) : selfAssessments
   }
