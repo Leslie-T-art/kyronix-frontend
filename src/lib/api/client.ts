@@ -5,6 +5,8 @@ import type {
   BranchPayload,
   Department,
   DepartmentPayload,
+  EventType,
+  EventTypePayload,
   OltsIncident,
   OltsIncidentPayload,
   RoleConfig,
@@ -320,6 +322,38 @@ export function updateBranch(
 
 export function deleteBranch(token: string, id: string): Promise<ApiResponse<null>> {
   return authServiceRequest<null>(token, `/admin/branches/${id}`, { method: 'DELETE' });
+}
+
+export function listEventTypes(token: string): Promise<ApiResponse<EventType[]>> {
+  return authServiceRequest<EventType[]>(token, '/admin/event-types', { method: 'GET' });
+}
+
+export function createEventType(token: string, payload: EventTypePayload): Promise<ApiResponse<EventType>> {
+  return authServiceRequest<EventType>(token, '/admin/event-types', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateEventType(
+  token: string,
+  id: string,
+  payload: EventTypePayload
+): Promise<ApiResponse<EventType>> {
+  return authServiceRequest<EventType>(token, `/admin/event-types/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteEventType(token: string, id: string): Promise<ApiResponse<null>> {
+  return authServiceRequest<null>(token, `/admin/event-types/${id}`, { method: 'DELETE' });
 }
 
 export function listRoles(token: string): Promise<ApiResponse<RoleConfig[]>> {

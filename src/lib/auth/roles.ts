@@ -6,6 +6,7 @@ export const NAV_ACCESS: Record<EngineKey, Role[]> = {
   notifications: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner', 'Staff'],
   departments: ['Admin'],
   branches: ['Admin'],
+  events: ['Admin'],
   users: ['Admin'],
   rolesConfig: ['Admin'],
   olts: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner'],

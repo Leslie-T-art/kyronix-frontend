@@ -16,6 +16,7 @@ import { Departments } from './pages/Departments';
 import { Branches } from './pages/Branches';
 import { Users } from './pages/Users';
 import { RolesConfiguration } from './pages/RolesConfiguration';
+import { Events } from './pages/Events';
 import { canAccess } from './lib/auth/roles';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/shared/ThemeToggle';
@@ -69,6 +70,13 @@ function Routing() {
           element={
           <Guard engine="branches">
               <Branches />
+            </Guard>
+          } />
+        <Route
+          path="/events"
+          element={
+          <Guard engine="events">
+              <Events />
             </Guard>
           } />
         <Route

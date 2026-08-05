@@ -5,6 +5,7 @@ export type EngineKey =
 'notifications' |
 'departments' |
 'branches' |
+'events' |
 'users' |
 'rolesConfig' |
 'olts' |
@@ -106,6 +107,19 @@ export interface Branch {
 }
 
 export interface BranchPayload {
+  code: string;
+  name: string;
+  active: boolean;
+}
+
+export interface EventType {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+}
+
+export interface EventTypePayload {
   code: string;
   name: string;
   active: boolean;
