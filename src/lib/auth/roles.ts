@@ -13,7 +13,7 @@ export const NAV_ACCESS: Record<EngineKey, Role[]> = {
   olts: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner', 'Inputter'],
   audit: ['Admin', 'RiskManager', 'Auditor'],
   kri: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner', 'Inputter', 'Staff'],
-  riskRegister: ['Admin', 'RiskManager', 'Auditor', 'ProcessOwner'],
+  riskRegister: ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner', 'Inputter', 'Staff'],
   processFlows: ['Admin', 'RiskManager', 'Auditor', 'ProcessOwner'],
   selfAssessment: ['Admin', 'RiskManager', 'ProcessOwner', 'Inputter', 'Staff']
 };

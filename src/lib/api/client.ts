@@ -18,6 +18,8 @@ import type {
   NotificationUnreadCount,
   OltsIncident,
   OltsIncidentPayload,
+  RiskRecord,
+  RiskRecordPayload,
   RoleConfig,
   RoleConfigPayload,
   Role
@@ -55,6 +57,7 @@ interface ProblemDetailPayload {
   correlationId?: string;
   message?: string;
   success?: boolean;
+  fieldErrors?: Record<string, string>;
 }
 
 export interface AuthPayload {
@@ -120,6 +123,7 @@ const AUTH_BASE_URL = trimTrailingSlash(import.meta.env.AUTH_BASE_URL);
 const OLTS_BASE_URL = trimTrailingSlash(import.meta.env.OLTS_BASE_URL);
 const KRI_BASE_URL = trimTrailingSlash(import.meta.env.KRI_BASE_URL);
 const NOTIFICATIONS_BASE_URL = trimTrailingSlash(import.meta.env.NOTIFICATIONS_BASE_URL);
+const RISK_REGISTER_BASE_URL = trimTrailingSlash(import.meta.env.RISK_REGISTER_BASE_URL);
 
 export function getRequestLog(): RequestLog[] {
   return requestLog;
@@ -153,8 +157,27 @@ function resolveNotificationsUrl(path: string): string | null {
   return `${NOTIFICATIONS_BASE_URL}${path}`;
 }
 
-function mapStatusToError(status: number, correlationId: string, message?: string): ApiError {
-  if (status === 400) return createApiErrorWithMessage('VALIDATION', correlationId, message);
+function resolveRiskRegisterUrl(path: string): string | null {
+  if (!RISK_REGISTER_BASE_URL) return null;
+  return `${RISK_REGISTER_BASE_URL}${path}`;
+}
+
+function formatFieldErrors(fieldErrors?: Record<string, string>): string | undefined {
+  if (!fieldErrors) return undefined;
+  const entries = Object.entries(fieldErrors).filter(([, value]) => Boolean(value));
+  if (entries.length === 0) return undefined;
+  return entries.map(([field, value]) => `${field}: ${value}`).join('\n');
+}
+
+function mapStatusToError(
+  status: number,
+  correlationId: string,
+  message?: string,
+  fieldErrors?: Record<string, string>
+): ApiError {
+  if (status === 400) {
+    return createApiErrorWithMessage('VALIDATION', correlationId, formatFieldErrors(fieldErrors) ?? message);
+  }
   if (status === 401) return createApiErrorWithMessage('UNAUTHORIZED', correlationId, message ?? 'Invalid username or password.');
   if (status === 403) return createApiErrorWithMessage('FORBIDDEN', correlationId, message ?? 'Your role does not grant access to this action.');
   if (status === 404) return createApiErrorWithMessage('NOT_FOUND', correlationId, message);
@@ -193,14 +216,16 @@ async function serviceRequest<T>(
         ...(init.headers ?? {})
       }
     });
-    const payload = await response.json() as Partial<ApiEnvelope<T>> & ProblemDetailPayload;
+    const raw = await response.text();
+    const payload = raw ? JSON.parse(raw) as Partial<ApiEnvelope<T>> & ProblemDetailPayload : {};
     const correlation = payload.correlationId ?? response.headers.get('x-correlation-id') ?? id;
     const message = payload.detail ?? payload.message ?? payload.title;
+    const explicitFailure = payload.success === false;
 
-    if (!response.ok || !payload.success) {
+    if (!response.ok || explicitFailure) {
       return {
         data: null,
-        error: mapStatusToError(response.status, correlation, message),
+        error: mapStatusToError(response.status, correlation, message, payload.fieldErrors),
         meta: { correlationId: correlation, durationMs: Date.now() - started }
       };
     }
@@ -519,6 +544,20 @@ function kriRequest<T>(token: string, path: string, init: RequestInit): Promise<
   });
 }
 
+function riskRegisterRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {
+  return serviceRequest<T>(
+    resolveRiskRegisterUrl(path),
+    'RISK_REGISTER_BASE_URL is not configured for this environment.',
+    {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init.headers ?? {})
+      }
+    }
+  );
+}
+
 export function listKriRecords(token: string): Promise<ApiResponse<KriRecord[]>> {
   return kriRequest<KriRecord[]>(token, '/kri/records', { method: 'GET' });
 }
@@ -549,6 +588,42 @@ export function updateKriRecord(
 
 export function deleteKriRecord(token: string, kriId: string): Promise<ApiResponse<null>> {
   return kriRequest<null>(token, `/kri/records/${kriId}`, { method: 'DELETE' });
+}
+
+export function listRiskRecords(token: string): Promise<ApiResponse<RiskRecord[]>> {
+  return riskRegisterRequest<RiskRecord[]>(token, '/risk-register/risks', { method: 'GET' });
+}
+
+export function getRiskRecord(token: string, riskId: string): Promise<ApiResponse<RiskRecord>> {
+  return riskRegisterRequest<RiskRecord>(token, `/risk-register/risks/${riskId}`, { method: 'GET' });
+}
+
+export function createRiskRecord(token: string, payload: RiskRecordPayload): Promise<ApiResponse<RiskRecord>> {
+  return riskRegisterRequest<RiskRecord>(token, '/risk-register/risks', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateRiskRecord(
+  token: string,
+  riskId: string,
+  payload: RiskRecordPayload
+): Promise<ApiResponse<RiskRecord>> {
+  return riskRegisterRequest<RiskRecord>(token, `/risk-register/risks/${riskId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteRiskRecord(token: string, riskId: string): Promise<ApiResponse<null>> {
+  return riskRegisterRequest<null>(token, `/risk-register/risks/${riskId}`, { method: 'DELETE' });
 }
 
 function notificationsRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {

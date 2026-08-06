@@ -256,16 +256,61 @@ export interface RiskEntry {
   id: string;
   title: string;
   category: string;
-  inherentRating: 'Low' | 'Medium' | 'High' | 'Critical';
-  residualRating: 'Low' | 'Medium' | 'High' | 'Critical';
-  controls: number;
+  inherentRating: string;
+  residualRating: string;
+  controls: string;
   owner: string;
   unit: string;
   reviewDate: string;
-  status: 'Open' | 'Mitigating' | 'Monitoring' | 'Closed';
+  status: string;
   likelihood: number;
   impact: number;
   description: string;
+}
+
+export interface RiskRecord {
+  riskId: string;
+  riskTitle: string;
+  category: string;
+  owner: string;
+  businessUnit: string;
+  description: string;
+  likelihood: number;
+  impact: number;
+  inherentRating: string;
+  controlsMapped: string;
+  controlEffectiveness: string;
+  residualRating: string;
+  treatmentStrategy: string;
+  status: string;
+  nextReviewDate: string;
+  linkedProcess: string;
+  linkedKri: string;
+  actionPlan: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+export interface RiskRecordPayload {
+  riskTitle: string;
+  category: string;
+  owner: string;
+  businessUnit: string;
+  description: string;
+  likelihood: number;
+  impact: number;
+  inherentRating: string;
+  controlsMapped: string;
+  controlEffectiveness: string;
+  residualRating: string;
+  treatmentStrategy: string;
+  status: string;
+  nextReviewDate: string;
+  linkedProcess: string;
+  linkedKri: string;
+  actionPlan: string;
 }
 
 export interface ProcessFlow {

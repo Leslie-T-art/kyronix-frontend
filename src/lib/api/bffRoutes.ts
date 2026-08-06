@@ -21,7 +21,7 @@ interface BffRoute {
   handler: (context: BffContext) => unknown;
 }
 
-const ALL: Role[] = ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner', 'Staff'];
+const ALL: Role[] = ['Admin', 'Head', 'RiskManager', 'Auditor', 'ProcessOwner', 'Inputter', 'Staff'];
 
 /** Data scoping applied at the BFF boundary — never in the browser. */
 function scopeByUnit<T extends {unit?: string;}>(rows: T[], context: BffContext): T[] {
