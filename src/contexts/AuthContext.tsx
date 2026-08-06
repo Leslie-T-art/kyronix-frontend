@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Role, User } from '../types';
-import { authLogin, authMe, type AuthPayload } from '../lib/api/client';
+import { authLogin, authMe, type AuthPayload, type AuthProfilePayload } from '../lib/api/client';
 import type { ApiError } from '../lib/api/errors';
 
 type AuthStatus = 'bootstrapping' | 'signed-out' | 'signing-in' | 'signed-in';
@@ -24,7 +24,17 @@ interface AuthContextValue {
   refreshProfile: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+const DEFAULT_AUTH_CONTEXT: AuthContextValue = {
+  user: null,
+  accessToken: null,
+  status: 'signed-out',
+  error: null,
+  signIn: async () => undefined,
+  signOut: () => undefined,
+  refreshProfile: async () => undefined
+};
+
+const AuthContext = createContext<AuthContextValue>(DEFAULT_AUTH_CONTEXT);
 const STORAGE_KEYS = {
   token: 'kyronix.auth.accessToken',
   roles: 'kyronix.auth.roles',
@@ -36,10 +46,11 @@ function mapBackendRole(roles: string[], permissions: string[]): Role {
   if (roles.includes('SYSTEM_ADMIN') || roles.includes('ADMIN') || permissions.some((value) => value.startsWith('ADMIN_'))) {
     return 'Admin';
   }
-  if (roles.includes('HEAD')) return 'Head';
+  if (roles.includes('HEAD') || roles.includes('DEPARTMENT_HEAD')) return 'Head';
   if (roles.includes('RISK_MANAGER')) return 'RiskManager';
   if (roles.includes('AUDITOR')) return 'Auditor';
   if (roles.includes('PROCESS_OWNER')) return 'ProcessOwner';
+  if (roles.includes('INPUTTER')) return 'Inputter';
   return 'Staff';
 }
 
@@ -65,11 +76,42 @@ function mapAuthPayloadToUser(payload: AuthPayload): User {
     unit: payload.departmentId ?? payload.branchId ?? 'Bank-wide',
     initials: buildInitials(name),
     backendRoles: payload.roles,
+    backendRoleNames: payload.roles,
     permissions: payload.permissions,
     departmentId: payload.departmentId,
     branchId: payload.branchId,
     issuedAt: payload.issuedAt,
     expiresAt: payload.expiresAt
+  };
+}
+
+function mapAuthProfileToUser(profile: AuthProfilePayload, session: StoredSession): User {
+  const backendRoles = profile.roles.map((role) => role.code);
+  const backendRoleNames = profile.roles.map((role) => role.name);
+  const role = mapBackendRole(backendRoles, profile.permissions);
+  const name = profile.fullName || profile.username;
+
+  return {
+    id: profile.id,
+    name,
+    email: profile.username,
+    username: profile.username,
+    role,
+    unit: profile.department?.name ?? profile.branch?.name ?? 'Bank-wide',
+    initials: buildInitials(name),
+    backendRoles,
+    backendRoleNames,
+    permissions: profile.permissions,
+    active: profile.active,
+    locked: profile.locked,
+    departmentId: profile.department?.id,
+    departmentCode: profile.department?.code,
+    departmentName: profile.department?.name,
+    branchId: profile.branch?.id,
+    branchCode: profile.branch?.code,
+    branchName: profile.branch?.name,
+    issuedAt: session.issuedAt,
+    expiresAt: session.expiresAt
   };
 }
 
@@ -129,14 +171,14 @@ export function AuthProvider({ children }: {children: React.ReactNode;}) {
 
     persistSession({
       accessToken: session.accessToken,
-      tokenType: response.data.tokenType || session.tokenType,
-      issuedAt: response.data.issuedAt,
-      expiresAt: response.data.expiresAt,
-      roles: response.data.roles,
+      tokenType: session.tokenType,
+      issuedAt: session.issuedAt,
+      expiresAt: session.expiresAt,
+      roles: response.data.roles.map((role) => role.code),
       permissions: response.data.permissions
     });
     setAccessToken(session.accessToken);
-    setUser(mapAuthPayloadToUser(response.data));
+    setUser(mapAuthProfileToUser(response.data, session));
     setError(null);
     setStatus('signed-in');
   }, [signOut]);
@@ -184,13 +226,13 @@ export function AuthProvider({ children }: {children: React.ReactNode;}) {
 
       persistSession({
         accessToken: session.accessToken,
-        tokenType: response.data.tokenType || session.tokenType,
-        issuedAt: response.data.issuedAt,
-        expiresAt: response.data.expiresAt,
-        roles: response.data.roles,
+        tokenType: session.tokenType,
+        issuedAt: session.issuedAt,
+        expiresAt: session.expiresAt,
+        roles: response.data.roles.map((role) => role.code),
         permissions: response.data.permissions
       });
-      setUser(mapAuthPayloadToUser(response.data));
+      setUser(mapAuthProfileToUser(response.data, session));
       setError(null);
       setStatus('signed-in');
     });
@@ -205,7 +247,5 @@ export function AuthProvider({ children }: {children: React.ReactNode;}) {
 }
 
 export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
+  return useContext(AuthContext);
 }

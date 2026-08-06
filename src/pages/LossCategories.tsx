@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EyeIcon, PencilIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react';
-import { EventTypeForm } from '../components/forms/EventTypeForm';
+import { LossCategoryForm } from '../components/forms/LossCategoryForm';
 import { ConfirmModal } from '../components/shared/ConfirmModal';
 import { DataTable, type Column } from '../components/shared/DataTable';
 import { DetailDrawer, DetailRow } from '../components/shared/DetailDrawer';
@@ -8,88 +8,135 @@ import { EmptyState } from '../components/shared/States';
 import { PageBanner } from '../components/shared/PageBanner';
 import { RowActionsMenu, type RowActionItem } from '../components/shared/RowActionsMenu';
 import { StatCard } from '../components/shared/StatCard';
-import { StatusBadge } from '../components/shared/StatusBadge';
 import { SuccessModal } from '../components/shared/SuccessModal';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
-import { createEventType, deleteEventType, listEventTypes, updateEventType } from '../lib/api/client';
+import {
+  createLossCategory,
+  deleteLossCategory,
+  getLossCategory,
+  listLossCategories,
+  updateLossCategory
+} from '../lib/api/client';
 import type { ApiError } from '../lib/api/errors';
-import type { EventType, EventTypePayload } from '../types';
+import type { LossCategory, LossCategoryPayload } from '../types';
 
-export function Events() {
-  const { user, accessToken } = useAuth();
-  const [rows, setRows] = useState<EventType[]>([]);
+export function LossCategories() {
+  const { user, accessToken, signOut } = useAuth();
+  const [rows, setRows] = useState<LossCategory[]>([]);
   const [error, setError] = useState<ApiError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
-  const [selected, setSelected] = useState<EventType | null>(null);
+  const [selected, setSelected] = useState<LossCategory | null>(null);
   const [formBusy, setFormBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<EventType | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LossCategory | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const canManage = Boolean(user?.backendRoles.includes('SYSTEM_ADMIN'));
+  const [detailBusy, setDetailBusy] = useState(false);
+  const canManage = user?.role === 'Admin';
 
-  const loadEvents = useCallback(async () => {
+  const loadLossCategories = useCallback(async () => {
     if (!accessToken) {
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
-    const response = await listEventTypes(accessToken);
+    const response = await listLossCategories(accessToken);
+    if (response.error?.code === 'UNAUTHORIZED') {
+      signOut();
+      return;
+    }
+
     setRows(response.data ?? []);
     setError(response.error);
     setIsLoading(false);
-  }, [accessToken]);
+  }, [accessToken, signOut]);
 
   useEffect(() => {
-    void loadEvents();
-  }, [loadEvents]);
+    void loadLossCategories();
+  }, [loadLossCategories]);
 
-  async function handleCreate(payload: EventTypePayload) {
+  async function loadDetail(lossCategoryId: string) {
+    if (!accessToken) return;
+    setDetailBusy(true);
+    const response = await getLossCategory(accessToken, lossCategoryId);
+    setDetailBusy(false);
+
+    if (response.error?.code === 'UNAUTHORIZED') {
+      signOut();
+      return;
+    }
+
+    if (response.error || !response.data) {
+      setError(response.error);
+      return;
+    }
+
+    setSelected(response.data);
+    setDetailOpen(true);
+  }
+
+  async function handleCreate(payload: LossCategoryPayload) {
     if (!accessToken || !canManage) return;
     setFormBusy(true);
     setFormError(null);
-    const response = await createEventType(accessToken, payload);
+    const response = await createLossCategory(accessToken, payload);
     setFormBusy(false);
 
+    if (response.error?.code === 'UNAUTHORIZED') {
+      signOut();
+      return;
+    }
+
     if (response.error || !response.data) {
-      setFormError(response.error?.message ?? 'Unable to create event type.');
+      setFormError(response.error?.message ?? 'Unable to create loss category.');
       return;
     }
 
     setFormOpen(false);
-    setSavedMessage(`Event type ${response.data.code} created successfully.`);
-    await loadEvents();
+    setSavedMessage(`Loss category ${response.data.code} created successfully.`);
+    await loadLossCategories();
   }
 
-  async function handleUpdate(payload: EventTypePayload) {
+  async function handleUpdate(payload: LossCategoryPayload) {
     if (!accessToken || !selected || !canManage) return;
     setFormBusy(true);
     setFormError(null);
-    const response = await updateEventType(accessToken, selected.id, payload);
+    const response = await updateLossCategory(accessToken, selected.id, payload);
     setFormBusy(false);
 
+    if (response.error?.code === 'UNAUTHORIZED') {
+      signOut();
+      return;
+    }
+
     if (response.error || !response.data) {
-      setFormError(response.error?.message ?? 'Unable to update event type.');
+      setFormError(response.error?.message ?? 'Unable to update loss category.');
       return;
     }
 
     setSelected(response.data);
     setFormOpen(false);
-    setSavedMessage(`Event type ${response.data.code} updated successfully.`);
-    await loadEvents();
+    setSavedMessage(`Loss category ${response.data.code} updated successfully.`);
+    await loadLossCategories();
   }
 
   async function handleDelete() {
     if (!accessToken || !deleteTarget || !canManage) return;
     setDeleteBusy(true);
-    const response = await deleteEventType(accessToken, deleteTarget.id);
+    const response = await deleteLossCategory(accessToken, deleteTarget.id);
     setDeleteBusy(false);
+
+    if (response.error?.code === 'UNAUTHORIZED') {
+      signOut();
+      return;
+    }
+
     if (response.error) {
       setError(response.error);
       return;
@@ -100,12 +147,12 @@ export function Events() {
       setDetailOpen(false);
     }
     setDeleteTarget(null);
-    setSavedMessage(`Event type ${deleteTarget.code} deleted successfully.`);
-    await loadEvents();
+    setSavedMessage(`Loss category ${deleteTarget.code} deleted successfully.`);
+    await loadLossCategories();
   }
 
   const columns = useMemo(() => {
-    const base: Column<EventType>[] = [
+    const base: Column<LossCategory>[] = [
       {
         key: 'code',
         header: 'Code',
@@ -118,11 +165,10 @@ export function Events() {
         value: (row) => row.name
       },
       {
-        key: 'active',
-        header: 'Status',
-        filterable: true,
-        value: (row) => (row.active ? 'Active' : 'Inactive'),
-        render: (row) => <StatusBadge status={row.active ? 'Active' : 'Inactive'} />
+        key: 'description',
+        header: 'Description',
+        value: (row) => row.description,
+        render: (row) => <span className="block max-w-[420px] truncate">{row.description}</span>
       },
       {
         key: 'actions',
@@ -133,11 +179,10 @@ export function Events() {
           const actions: RowActionItem[] = [
             {
               key: 'view',
-              label: 'View event type',
+              label: 'View loss category',
               icon: EyeIcon,
               onClick: () => {
-                setSelected(row);
-                setDetailOpen(true);
+                void loadDetail(row.id);
                 setOpenMenuId(null);
               }
             },
@@ -145,7 +190,7 @@ export function Events() {
               ? [
                   {
                     key: 'edit',
-                    label: 'Update event type',
+                    label: 'Update loss category',
                     icon: PencilIcon,
                     onClick: () => {
                       setSelected(row);
@@ -157,7 +202,7 @@ export function Events() {
                   },
                   {
                     key: 'delete',
-                    label: 'Delete event type',
+                    label: 'Delete loss category',
                     icon: Trash2Icon,
                     tone: 'danger' as const,
                     onClick: () => {
@@ -184,18 +229,18 @@ export function Events() {
     return base;
   }, [canManage, openMenuId]);
 
-  const activeCount = rows.filter((row) => row.active).length;
-  const inactiveCount = rows.length - activeCount;
+  const descriptionCount = rows.filter((row) => row.description.trim() !== '').length;
+  const uniqueCodes = new Set(rows.map((row) => row.code)).size;
 
   return (
     <>
       <PageBanner
-        title="Events"
-        subtitle="Event type reference data managed through the centralized auth service"
-        breadcrumb={['Kyronix', 'Events']}
+        title="Loss Categories"
+        subtitle="OLTS loss category reference data managed through the centralized OLTS service"
+        breadcrumb={['Kyronix', 'Loss Categories']}
         action={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => void loadEvents()}>
+            <Button variant="outline" size="sm" onClick={() => void loadLossCategories()}>
               <RefreshCwIcon className="h-3.5 w-3.5" />
               Refresh
             </Button>
@@ -211,7 +256,7 @@ export function Events() {
                 }}
               >
                 <PlusIcon className="h-3.5 w-3.5" />
-                Create event type
+                Create loss category
               </Button>
             )}
           </div>
@@ -219,14 +264,14 @@ export function Events() {
       />
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <StatCard label="Total event types" value={String(rows.length)} tone="neutral" delta={0} />
-        <StatCard label="Active" value={String(activeCount)} tone="success" delta={0} />
-        <StatCard label="Inactive" value={String(inactiveCount)} tone="warning" delta={0} />
+        <StatCard label="Total categories" value={String(rows.length)} tone="neutral" delta={0} />
+        <StatCard label="With descriptions" value={String(descriptionCount)} tone="info" delta={0} />
+        <StatCard label="Unique codes" value={String(uniqueCodes)} tone="success" delta={0} />
       </div>
 
       {!accessToken && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          No access token is available. Sign in again to view event types.
+          No access token is available. Sign in again to manage loss categories.
         </div>
       )}
 
@@ -237,18 +282,15 @@ export function Events() {
           rowKey={(row) => row.id}
           isLoading={isLoading}
           error={error}
-          onRetry={() => void loadEvents()}
-          onRowClick={(row) => {
-            setSelected(row);
-            setDetailOpen(true);
-          }}
-          searchPlaceholder="Search event code or name"
-          exportName="event-types"
+          onRetry={() => void loadLossCategories()}
+          onRowClick={(row) => void loadDetail(row.id)}
+          searchPlaceholder="Search loss category code, name, or description"
+          exportName="loss-categories"
           pageSize={10}
         />
       )}
 
-      <EventTypeForm
+      <LossCategoryForm
         open={formOpen}
         mode={formMode}
         initialValues={selected}
@@ -260,40 +302,39 @@ export function Events() {
 
       <DetailDrawer
         open={detailOpen}
-        title={selected?.code ?? 'Event detail'}
-        subtitle="Admin event type record"
+        title={selected?.code ?? 'Loss category detail'}
+        subtitle="OLTS loss category record"
         onClose={() => setDetailOpen(false)}
         width="md"
       >
-        {!selected && <EmptyState description="Select an event type to view its details." />}
-        {selected && (
+        {detailBusy && <EmptyState description="Loading loss category..." />}
+        {!detailBusy && !selected && <EmptyState description="Select a loss category to view its details." />}
+        {!detailBusy && selected && (
           <dl>
             <DetailRow label="ID">{selected.id}</DetailRow>
             <DetailRow label="Code">{selected.code}</DetailRow>
             <DetailRow label="Name">{selected.name}</DetailRow>
-            <DetailRow label="Status">
-              <StatusBadge status={selected.active ? 'Active' : 'Inactive'} />
-            </DetailRow>
+            <DetailRow label="Description">{selected.description}</DetailRow>
           </dl>
         )}
       </DetailDrawer>
 
       <SuccessModal
         open={Boolean(savedMessage)}
-        title="Event action completed"
+        title="Loss category action completed"
         description={savedMessage ?? undefined}
         onClose={() => setSavedMessage(null)}
       />
 
       <ConfirmModal
         open={Boolean(deleteTarget)}
-        title={deleteTarget ? `Delete ${deleteTarget.code}?` : 'Delete event type?'}
+        title={deleteTarget ? `Delete ${deleteTarget.code}?` : 'Delete loss category?'}
         description={
           deleteTarget
-            ? `This will permanently delete the ${deleteTarget.name} event type record. This action cannot be undone.`
+            ? `This will permanently delete the ${deleteTarget.name} loss category. This action cannot be undone.`
             : undefined
         }
-        confirmLabel="Delete event type"
+        confirmLabel="Delete loss category"
         cancelLabel="Cancel"
         busy={deleteBusy}
         tone="danger"

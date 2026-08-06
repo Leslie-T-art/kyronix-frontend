@@ -3,9 +3,9 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { ChevronsLeftIcon, ChevronsRightIcon, LogOutIcon, UserCircle2Icon } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { canAccess, scopeLabel } from '../../lib/auth/roles';
 import { NAV_ITEMS, NMB_LOGO } from './navigation';
-import { notifications } from '../../data/notifications';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -15,11 +15,11 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarProps) {
   const { user, signOut } = useAuth();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   if (!user) return null;
 
   const items = NAV_ITEMS.filter((item) => canAccess(user.role, item.key));
-  const unread = notifications.filter((item) => item.unread).length;
 
   return (
     <nav
@@ -65,14 +65,14 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
             
               <item.icon className="h-4 w-4 shrink-0" />
               {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-              {item.key === 'notifications' && unread > 0 &&
+              {item.key === 'notifications' && unreadCount > 0 &&
             <span
               className={cn(
                 'tabular rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-semibold text-white',
                 collapsed && 'absolute ml-6 -mt-5 px-1'
               )}>
               
-                  {unread}
+                  {unreadCount}
                 </span>
             }
             </NavLink>

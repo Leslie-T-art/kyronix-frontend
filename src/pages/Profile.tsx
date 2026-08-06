@@ -4,6 +4,7 @@ import { PageBanner } from '../components/shared/PageBanner';
 import { SurfaceCard } from '../components/shared/SurfaceCard';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
+import { formatDateTime } from '../utils/cn';
 
 function DetailRow({ label, value }: {label: string;value: string;}) {
   return (
@@ -22,6 +23,11 @@ export function Profile() {
   }, [refreshProfile]);
 
   if (!user) return null;
+
+  const accountStatus = [
+    user.active === false ? 'Inactive' : 'Active',
+    user.locked ? 'Locked' : 'Unlocked'
+  ].join(' • ');
 
   return (
     <>
@@ -46,17 +52,37 @@ export function Profile() {
             <div>
               <p className="text-lg font-semibold text-navy">{user.name}</p>
               <p className="text-sm text-zinc-500">{user.username}</p>
-              <div className="mt-3 inline-flex rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold-700">
-                {user.role}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <div className="inline-flex rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold-700">
+                  {user.role}
+                </div>
+                <div className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
+                  {accountStatus}
+                </div>
               </div>
             </div>
           </div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             <DetailRow label="User ID" value={user.id} />
-            <DetailRow label="Department ID" value={user.departmentId ?? 'Not provided'} />
-            <DetailRow label="Branch ID" value={user.branchId ?? 'Not provided'} />
-            <DetailRow label="Session Expires" value={user.expiresAt ?? 'Not provided'} />
+            <DetailRow
+              label="Department"
+              value={
+                user.departmentName
+                  ? `${user.departmentCode ?? user.departmentId ?? ''} ${user.departmentName}`.trim()
+                  : 'Not provided'
+              }
+            />
+            <DetailRow
+              label="Branch"
+              value={
+                user.branchName
+                  ? `${user.branchCode ?? user.branchId ?? ''} ${user.branchName}`.trim()
+                  : 'Not provided'
+              }
+            />
+            <DetailRow label="Primary Unit" value={user.unit || 'Not provided'} />
+            <DetailRow label="Session Expires" value={user.expiresAt ? formatDateTime(user.expiresAt) : 'Not provided'} />
           </div>
         </SurfaceCard>
 
@@ -71,9 +97,9 @@ export function Profile() {
                 Backend Roles
               </div>
               <div className="flex flex-wrap gap-2">
-                {user.backendRoles.map((role) => (
+                {user.backendRoles.map((role, index) => (
                   <span key={role} className="rounded-full border border-navy/15 bg-navy/5 px-3 py-1 text-xs font-medium text-navy">
-                    {role}
+                    {user.backendRoleNames[index] ? `${user.backendRoleNames[index]} (${role})` : role}
                   </span>
                 ))}
               </div>

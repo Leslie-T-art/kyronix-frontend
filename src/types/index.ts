@@ -1,4 +1,4 @@
-export type Role = 'Admin' | 'Head' | 'RiskManager' | 'Auditor' | 'ProcessOwner' | 'Staff';
+export type Role = 'Admin' | 'Head' | 'RiskManager' | 'Auditor' | 'ProcessOwner' | 'Inputter' | 'Staff';
 
 export type EngineKey =
 'dashboard' |
@@ -6,6 +6,7 @@ export type EngineKey =
 'departments' |
 'branches' |
 'events' |
+'lossCategories' |
 'users' |
 'rolesConfig' |
 'olts' |
@@ -26,9 +27,16 @@ export interface User {
   unit: string;
   initials: string;
   backendRoles: string[];
+  backendRoleNames: string[];
   permissions: string[];
+  active?: boolean;
+  locked?: boolean;
   departmentId?: string;
+  departmentCode?: string;
+  departmentName?: string;
   branchId?: string;
+  branchCode?: string;
+  branchName?: string;
   issuedAt?: string;
   expiresAt?: string;
 }
@@ -50,7 +58,9 @@ export interface OltsIncident {
   id: string;
   incidentId: string;
   departmentId: string;
+  departmentName?: string | null;
   branchId: string;
+  branchName?: string | null;
   incidentDate: string;
   discoveryDate: string;
   severity: string;
@@ -125,6 +135,19 @@ export interface EventTypePayload {
   active: boolean;
 }
 
+export interface LossCategory {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+}
+
+export interface LossCategoryPayload {
+  code: string;
+  name: string;
+  description: string;
+}
+
 export interface RoleConfig {
   id: string;
   code: string;
@@ -179,6 +202,54 @@ export interface Kri {
   trend: number[];
   breachStatus: 'Green' | 'Amber' | 'Red';
   lastUpdated: string;
+}
+
+export interface KriRecord {
+  id: string;
+  kriId: string;
+  indicatorName: string;
+  category: string;
+  owner: string;
+  businessUnit: string;
+  measurementFrequency: string;
+  description: string;
+  unitOfMeasure: string;
+  target: number;
+  direction: string;
+  greenUpperBound: number;
+  amberThreshold: number;
+  redThreshold: number;
+  currentValue: number;
+  dataSource: string;
+  nextReviewDate: string;
+  linkedRisk: string;
+  escalateTo: string;
+  escalationTrigger: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface KriRecordPayload {
+  indicatorName: string;
+  category: string;
+  owner: string;
+  businessUnit: string;
+  measurementFrequency: string;
+  description: string;
+  unitOfMeasure: string;
+  target: number;
+  direction: string;
+  greenUpperBound: number;
+  amberThreshold: number;
+  redThreshold: number;
+  currentValue: number;
+  dataSource: string;
+  nextReviewDate: string;
+  linkedRisk: string;
+  escalateTo: string;
+  escalationTrigger: string;
 }
 
 export interface RiskEntry {
@@ -265,6 +336,58 @@ export interface AppNotification {
   tone: SemanticTone;
   time: string;
   unread: boolean;
+}
+
+export interface NotificationRecord {
+  id: string;
+  type?: string | null;
+  priority?: string | null;
+  title: string;
+  message: string;
+  sourceService?: string | null;
+  eventType?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  businessReference?: string | null;
+  readState?: string | null;
+  state?: string | null;
+  occurredAt: string;
+  readAt?: string | null;
+  archivedAt?: string | null;
+  correlationId?: string | null;
+}
+
+export interface NotificationPage {
+  content: NotificationRecord[];
+  totalElements: number;
+  totalPages: number;
+  numberOfElements: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
+}
+
+export interface NotificationUnreadCount {
+  unreadCount: number;
+}
+
+export interface InternalNotificationEventPayload {
+  eventId: string;
+  eventType: string;
+  sourceService: string;
+  entityType: string;
+  entityId: string;
+  businessReference: string;
+  recipientUserIds: string[];
+  departmentId: string;
+  type: string;
+  priority: string;
+  title: string;
+  message: string;
+  occurredAt: string;
+  correlationId: string;
 }
 
 export interface DashboardSummary {

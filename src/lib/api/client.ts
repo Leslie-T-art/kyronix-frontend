@@ -8,13 +8,21 @@ import type {
   DepartmentPayload,
   EventType,
   EventTypePayload,
+  LossCategory,
+  LossCategoryPayload,
+  InternalNotificationEventPayload,
+  KriRecord,
+  KriRecordPayload,
+  NotificationPage,
+  NotificationRecord,
+  NotificationUnreadCount,
   OltsIncident,
   OltsIncidentPayload,
   RoleConfig,
   RoleConfigPayload,
   Role
 } from '../../types';
-import { createApiError, type ApiError } from './errors';
+import { createApiError, createApiErrorWithMessage, type ApiError } from './errors';
 import { resolveBffRoute } from './bffRoutes';
 import { ENDPOINTS } from './endpoints';
 
@@ -64,6 +72,29 @@ export interface AuthPayload {
   permissions: string[];
 }
 
+export interface AuthProfileReference {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface AuthProfileRole {
+  code: string;
+  name: string;
+}
+
+export interface AuthProfilePayload {
+  id: string;
+  username: string;
+  fullName: string;
+  active: boolean;
+  locked: boolean;
+  department?: AuthProfileReference;
+  branch?: AuthProfileReference;
+  roles: AuthProfileRole[];
+  permissions: string[];
+}
+
 export interface LoginRequest {
   username: string;
   password: string;
@@ -87,6 +118,8 @@ export interface RequestLog {
 const requestLog: RequestLog[] = [];
 const AUTH_BASE_URL = trimTrailingSlash(import.meta.env.AUTH_BASE_URL);
 const OLTS_BASE_URL = trimTrailingSlash(import.meta.env.OLTS_BASE_URL);
+const KRI_BASE_URL = trimTrailingSlash(import.meta.env.KRI_BASE_URL);
+const NOTIFICATIONS_BASE_URL = trimTrailingSlash(import.meta.env.NOTIFICATIONS_BASE_URL);
 
 export function getRequestLog(): RequestLog[] {
   return requestLog;
@@ -110,10 +143,22 @@ function resolveOltsUrl(path: string): string | null {
   return `${OLTS_BASE_URL}${path}`;
 }
 
+function resolveKriUrl(path: string): string | null {
+  if (!KRI_BASE_URL) return null;
+  return `${KRI_BASE_URL}${path}`;
+}
+
+function resolveNotificationsUrl(path: string): string | null {
+  if (!NOTIFICATIONS_BASE_URL) return null;
+  return `${NOTIFICATIONS_BASE_URL}${path}`;
+}
+
 function mapStatusToError(status: number, correlationId: string, message?: string): ApiError {
-  if (status === 401) return { code: 'UNAUTHORIZED', correlationId, message: message ?? 'Invalid username or password.' };
-  if (status === 403) return { code: 'FORBIDDEN', correlationId, message: message ?? 'Your role does not grant access to this action.' };
-  return { code: 'UPSTREAM', correlationId, message: message ?? 'The authentication service is temporarily unavailable.' };
+  if (status === 400) return createApiErrorWithMessage('VALIDATION', correlationId, message);
+  if (status === 401) return createApiErrorWithMessage('UNAUTHORIZED', correlationId, message ?? 'Invalid username or password.');
+  if (status === 403) return createApiErrorWithMessage('FORBIDDEN', correlationId, message ?? 'Your role does not grant access to this action.');
+  if (status === 404) return createApiErrorWithMessage('NOT_FOUND', correlationId, message);
+  return createApiErrorWithMessage('UPSTREAM', correlationId, message ?? 'The authentication service is temporarily unavailable.');
 }
 
 async function authRequest<T>(path: string, init: RequestInit): Promise<ApiResponse<T>> {
@@ -242,8 +287,8 @@ export function authLogin(payload: LoginRequest): Promise<ApiResponse<AuthPayloa
   });
 }
 
-export function authMe(token: string): Promise<ApiResponse<AuthPayload>> {
-  return authRequest<AuthPayload>(ENDPOINTS.auth.me, {
+export function authMe(token: string): Promise<ApiResponse<AuthProfilePayload>> {
+  return authRequest<AuthProfilePayload>(ENDPOINTS.auth.me, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`
@@ -361,6 +406,42 @@ export function deleteEventType(token: string, id: string): Promise<ApiResponse<
   return authServiceRequest<null>(token, `/admin/event-types/${id}`, { method: 'DELETE' });
 }
 
+export function listLossCategories(token: string): Promise<ApiResponse<LossCategory[]>> {
+  return oltsRequest<LossCategory[]>(token, '/olts/loss-categories', { method: 'GET' });
+}
+
+export function getLossCategory(token: string, lossCategoryId: string): Promise<ApiResponse<LossCategory>> {
+  return oltsRequest<LossCategory>(token, `/olts/loss-categories/${lossCategoryId}`, { method: 'GET' });
+}
+
+export function createLossCategory(token: string, payload: LossCategoryPayload): Promise<ApiResponse<LossCategory>> {
+  return oltsRequest<LossCategory>(token, '/olts/loss-categories', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateLossCategory(
+  token: string,
+  lossCategoryId: string,
+  payload: LossCategoryPayload
+): Promise<ApiResponse<LossCategory>> {
+  return oltsRequest<LossCategory>(token, `/olts/loss-categories/${lossCategoryId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteLossCategory(token: string, lossCategoryId: string): Promise<ApiResponse<null>> {
+  return oltsRequest<null>(token, `/olts/loss-categories/${lossCategoryId}`, { method: 'DELETE' });
+}
+
 export function listRoles(token: string): Promise<ApiResponse<RoleConfig[]>> {
   return authServiceRequest<RoleConfig[]>(token, '/admin/roles', { method: 'GET' });
 }
@@ -426,6 +507,208 @@ export function updateAdminUser(
 
 export function deleteAdminUser(token: string, id: string): Promise<ApiResponse<null>> {
   return authServiceRequest<null>(token, `/admin/users/${id}`, { method: 'DELETE' });
+}
+
+function kriRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {
+  return serviceRequest<T>(resolveKriUrl(path), 'KRI_BASE_URL is not configured for this environment.', {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(init.headers ?? {})
+    }
+  });
+}
+
+export function listKriRecords(token: string): Promise<ApiResponse<KriRecord[]>> {
+  return kriRequest<KriRecord[]>(token, '/kri/records', { method: 'GET' });
+}
+
+export function createKriRecord(token: string, payload: KriRecordPayload): Promise<ApiResponse<KriRecord>> {
+  return kriRequest<KriRecord>(token, '/kri/records', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateKriRecord(
+  token: string,
+  kriId: string,
+  payload: KriRecordPayload
+): Promise<ApiResponse<KriRecord>> {
+  return kriRequest<KriRecord>(token, `/kri/records/${kriId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteKriRecord(token: string, kriId: string): Promise<ApiResponse<null>> {
+  return kriRequest<null>(token, `/kri/records/${kriId}`, { method: 'DELETE' });
+}
+
+function notificationsRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {
+  return serviceRequest<T>(resolveNotificationsUrl(path), 'NOTIFICATIONS_BASE_URL is not configured for this environment.', {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(init.headers ?? {})
+    }
+  });
+}
+
+export interface NotificationListQuery {
+  type?: string;
+  priority?: string;
+  readState?: string;
+  state?: string;
+  sourceService?: string;
+  page?: number;
+  size?: number;
+}
+
+function toQueryString(query: NotificationListQuery): string {
+  const params = new URLSearchParams();
+  if (query.type) params.set('type', query.type);
+  if (query.priority) params.set('priority', query.priority);
+  if (query.readState) params.set('readState', query.readState);
+  if (query.state) params.set('state', query.state);
+  if (query.sourceService) params.set('sourceService', query.sourceService);
+  params.set('page', String(query.page ?? 0));
+  params.set('size', String(query.size ?? 20));
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : '';
+}
+
+export function listNotifications(
+  token: string,
+  query: NotificationListQuery = {}
+): Promise<ApiResponse<NotificationPage>> {
+  return notificationsRequest<NotificationPage>(token, `/notifications${toQueryString(query)}`, {
+    method: 'GET'
+  });
+}
+
+export function getNotification(token: string, id: string): Promise<ApiResponse<NotificationRecord>> {
+  return notificationsRequest<NotificationRecord>(token, `/notifications/${id}`, { method: 'GET' });
+}
+
+export function getNotificationUnreadCount(token: string): Promise<ApiResponse<NotificationUnreadCount>> {
+  return notificationsRequest<NotificationUnreadCount>(token, '/notifications/unread-count', {
+    method: 'GET'
+  });
+}
+
+export function markNotificationRead(token: string, id: string): Promise<ApiResponse<NotificationRecord>> {
+  return notificationsRequest<NotificationRecord>(token, `/notifications/${id}/read`, {
+    method: 'PATCH'
+  });
+}
+
+export function markNotificationUnread(token: string, id: string): Promise<ApiResponse<NotificationRecord>> {
+  return notificationsRequest<NotificationRecord>(token, `/notifications/${id}/unread`, {
+    method: 'PATCH'
+  });
+}
+
+export function dismissNotification(token: string, id: string): Promise<ApiResponse<NotificationRecord>> {
+  return notificationsRequest<NotificationRecord>(token, `/notifications/${id}/dismiss`, {
+    method: 'PATCH'
+  });
+}
+
+export function archiveNotification(token: string, id: string): Promise<ApiResponse<NotificationRecord>> {
+  return notificationsRequest<NotificationRecord>(token, `/notifications/${id}/archive`, {
+    method: 'PATCH'
+  });
+}
+
+export function markAllNotificationsRead(token: string): Promise<ApiResponse<null>> {
+  return notificationsRequest<null>(token, '/notifications/read-all', {
+    method: 'POST'
+  });
+}
+
+export function archiveAllReadNotifications(token: string): Promise<ApiResponse<null>> {
+  return notificationsRequest<null>(token, '/notifications/archive-all-read', {
+    method: 'POST'
+  });
+}
+
+export function deleteNotification(token: string, id: string): Promise<ApiResponse<null>> {
+  return notificationsRequest<null>(token, `/notifications/${id}`, { method: 'DELETE' });
+}
+
+export function publishInternalNotificationEvent(
+  token: string,
+  payload: InternalNotificationEventPayload
+): Promise<ApiResponse<null>> {
+  return notificationsRequest<null>(token, '/internal/notifications/events', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function openNotificationsStream(
+  token: string,
+  onMessage: (data: string) => void,
+  onError: (error: Error) => void,
+  signal: AbortSignal
+): Promise<void> {
+  const url = resolveNotificationsUrl('/notifications/stream');
+  if (!url) {
+    onError(new Error('NOTIFICATIONS_BASE_URL is not configured for this environment.'));
+    return;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        accept: 'text/event-stream',
+        Authorization: `Bearer ${token}`
+      },
+      signal
+    });
+
+    if (!response.ok || !response.body) {
+      onError(new Error(`Notifications stream failed with status ${response.status}.`));
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (!signal.aborted) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let boundary = buffer.indexOf('\n\n');
+      while (boundary !== -1) {
+        const chunk = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        const dataLines = chunk
+          .split('\n')
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.replace(/^data:\s?/, ''))
+          .join('\n');
+        if (dataLines) onMessage(dataLines);
+        boundary = buffer.indexOf('\n\n');
+      }
+    }
+  } catch (error) {
+    if (signal.aborted) return;
+    onError(error instanceof Error ? error : new Error('Notifications stream failed.'));
+  }
 }
 
 function oltsRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {

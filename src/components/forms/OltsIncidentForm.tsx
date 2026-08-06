@@ -3,25 +3,21 @@ import { Loader2Icon } from 'lucide-react';
 import { FormDrawer } from '../shared/FormDrawer';
 import { Field, FormSection, ReadOnlyValue, SelectInput, TextArea, TextInput } from '../ui/Field';
 import { formatCurrency } from '../../utils/cn';
-import type { OltsIncident, OltsIncidentPayload } from '../../types';
+import type { Branch, Department, EventType, LossCategory, OltsIncident, OltsIncidentPayload } from '../../types';
 
-const LOSS_CATEGORIES = [
-  'INTERNAL_FRAUD',
-  'EXTERNAL_FRAUD',
-  'EMPLOYMENT_PRACTICES',
-  'CLIENTS_PRODUCTS_BUSINESS_PRACTICES',
-  'DAMAGE_TO_PHYSICAL_ASSETS',
-  'BUSINESS_DISRUPTION_SYSTEM_FAILURE',
-  'EXECUTION_DELIVERY_PROCESS_MANAGEMENT'
-];
-
-const EVENT_TYPES = ['OPERATIONAL_LOSS', 'NEAR_MISS', 'POTENTIAL_LOSS', 'GAIN_EVENT'];
 const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
 interface OltsIncidentFormProps {
   open: boolean;
   mode: 'create' | 'edit';
   initialValues?: OltsIncident | null;
+  isSystemAdmin: boolean;
+  branches: Branch[];
+  departments: Department[];
+  lossCategories: LossCategory[];
+  eventTypes: EventType[];
+  currentBranch?: Pick<Branch, 'id' | 'code' | 'name'> | null;
+  currentDepartment?: Pick<Department, 'id' | 'code' | 'name'> | null;
   defaultBranchId?: string;
   defaultDepartmentId?: string;
   isSubmitting?: boolean;
@@ -48,7 +44,9 @@ interface FormState {
 function toFormState(
   incident?: OltsIncident | null,
   defaultBranchId?: string,
-  defaultDepartmentId?: string
+  defaultDepartmentId?: string,
+  defaultLossCategory?: string,
+  defaultEventType?: string
 ): FormState {
   const today = new Date().toISOString().slice(0, 10);
   return {
@@ -56,8 +54,8 @@ function toFormState(
     discoveryDate: incident?.discoveryDate ?? today,
     branchId: incident?.branchId ?? defaultBranchId ?? '',
     departmentId: incident?.departmentId ?? defaultDepartmentId ?? '',
-    lossCategory: incident?.lossCategory ?? LOSS_CATEGORIES[0],
-    eventType: incident?.eventType ?? EVENT_TYPES[0],
+    lossCategory: incident?.lossCategory ?? defaultLossCategory ?? '',
+    eventType: incident?.eventType ?? defaultEventType ?? '',
     severity: incident?.severity ?? SEVERITIES[0],
     description: incident?.description ?? '',
     currencyCode: incident?.currencyCode ?? 'USD',
@@ -71,6 +69,13 @@ export function OltsIncidentForm({
   open,
   mode,
   initialValues,
+  isSystemAdmin,
+  branches,
+  departments,
+  lossCategories,
+  eventTypes,
+  currentBranch,
+  currentDepartment,
   defaultBranchId,
   defaultDepartmentId,
   isSubmitting = false,
@@ -78,14 +83,39 @@ export function OltsIncidentForm({
   onClose,
   onSubmit
 }: OltsIncidentFormProps) {
+  const availableBranches = isSystemAdmin
+    ? branches
+    : currentBranch
+      ? [{ ...currentBranch, active: true }]
+      : [];
+  const availableDepartments = isSystemAdmin
+    ? departments
+    : currentDepartment
+      ? [{ ...currentDepartment, active: true }]
+      : [];
+
   const [form, setForm] = useState<FormState>(() =>
-    toFormState(initialValues, defaultBranchId, defaultDepartmentId)
+    toFormState(
+      initialValues,
+      defaultBranchId,
+      defaultDepartmentId,
+      lossCategories[0]?.code,
+      eventTypes[0]?.code
+    )
   );
 
   useEffect(() => {
     if (!open) return;
-    setForm(toFormState(initialValues, defaultBranchId, defaultDepartmentId));
-  }, [open, initialValues, defaultBranchId, defaultDepartmentId]);
+    setForm(
+      toFormState(
+        initialValues,
+        defaultBranchId,
+        defaultDepartmentId,
+        lossCategories[0]?.code,
+        eventTypes[0]?.code
+      )
+    );
+  }, [open, initialValues, defaultBranchId, defaultDepartmentId, lossCategories, eventTypes]);
 
   const netLoss = useMemo(
     () => Math.max(0, (Number(form.grossLoss) || 0) - (Number(form.recoveries) || 0)),
@@ -149,39 +179,73 @@ export function OltsIncidentForm({
             required
           />
         </Field>
-        <Field label="Branch ID" htmlFor="branch-id" required>
-          <TextInput
-            id="branch-id"
-            value={form.branchId}
-            onChange={(event) => updateField('branchId', event.target.value)}
-            placeholder="UUID branch id"
-            required
-          />
-        </Field>
-        <Field label="Department ID" htmlFor="department-id" required>
-          <TextInput
-            id="department-id"
-            value={form.departmentId}
-            onChange={(event) => updateField('departmentId', event.target.value)}
-            placeholder="UUID department id"
-            required
-          />
-        </Field>
+        {isSystemAdmin && (
+          <Field label="Branch" htmlFor="branch-id" required>
+            <select
+              id="branch-id"
+              value={form.branchId}
+              onChange={(event) => updateField('branchId', event.target.value)}
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
+              required
+            >
+              <option value="" disabled>Select branch</option>
+              {availableBranches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.code} - {branch.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {isSystemAdmin && (
+          <Field label="Department" htmlFor="department-id" required>
+            <select
+              id="department-id"
+              value={form.departmentId}
+              onChange={(event) => updateField('departmentId', event.target.value)}
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
+              required
+            >
+              <option value="" disabled>Select department</option>
+              {availableDepartments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.code} - {department.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field label="Loss category" htmlFor="loss-category" required>
-          <SelectInput
+          <select
             id="loss-category"
-            options={LOSS_CATEGORIES}
             value={form.lossCategory}
             onChange={(event) => updateField('lossCategory', event.target.value)}
-          />
+            className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
+            required
+          >
+            <option value="" disabled>Select loss category</option>
+            {lossCategories.map((lossCategory) => (
+              <option key={lossCategory.id} value={lossCategory.code}>
+                {lossCategory.code}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Event type" htmlFor="event-type" required>
-          <SelectInput
+          <select
             id="event-type"
-            options={EVENT_TYPES}
             value={form.eventType}
             onChange={(event) => updateField('eventType', event.target.value)}
-          />
+            className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
+            required
+          >
+            <option value="" disabled>Select event type</option>
+            {eventTypes.map((eventType) => (
+              <option key={eventType.id} value={eventType.code}>
+                {eventType.code} - {eventType.name}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Severity" htmlFor="severity" required>
           <SelectInput

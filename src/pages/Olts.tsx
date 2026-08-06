@@ -30,6 +30,10 @@ import {
   createOltsIncident,
   deleteOltsIncident,
   getOltsIncident,
+  listBranches,
+  listDepartments,
+  listEventTypes,
+  listLossCategories,
   listOltsIncidents,
   rejectOltsIncident,
   returnOltsIncidentForCorrection,
@@ -40,7 +44,7 @@ import {
 } from '../lib/api/client';
 import type { ApiError } from '../lib/api/errors';
 import { formatCurrency, formatDate, formatDateTime } from '../utils/cn';
-import type { OltsIncident, OltsIncidentPayload } from '../types';
+import type { Branch, Department, EventType, LossCategory, OltsIncident, OltsIncidentPayload } from '../types';
 
 type WorkflowActionKey =
   | 'submit'
@@ -106,7 +110,16 @@ const ACTIONS: ActionConfig[] = [
 ];
 
 function canManageOltsActions(backendRoles: string[]): boolean {
-  return backendRoles.includes('HEAD') || backendRoles.includes('SYSTEM_ADMIN') || backendRoles.includes('ADMIN');
+  return (
+    backendRoles.includes('HEAD') ||
+    backendRoles.includes('DEPARTMENT_HEAD') ||
+    backendRoles.includes('SYSTEM_ADMIN') ||
+    backendRoles.includes('ADMIN')
+  );
+}
+
+function shouldRestrictOltsToDepartment(backendRoles: string[]): boolean {
+  return backendRoles.includes('INPUTTER') || backendRoles.includes('DEPARTMENT_HEAD');
 }
 
 function ActionPrompt({
@@ -114,6 +127,7 @@ function ActionPrompt({
   action,
   incident,
   busy,
+  error,
   onClose,
   onConfirm
 }: {
@@ -121,6 +135,7 @@ function ActionPrompt({
   action: ActionConfig | null;
   incident: OltsIncident | null;
   busy: boolean;
+  error: string | null;
   onClose: () => void;
   onConfirm: (payload: WorkflowReasonPayload) => Promise<void>;
 }) {
@@ -169,6 +184,11 @@ function ActionPrompt({
           />
         </Field>
       )}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+          {error}
+        </div>
+      )}
       {!action.needsReason && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
           This action cannot be undone.
@@ -181,6 +201,10 @@ function ActionPrompt({
 export function Olts() {
   const { user, accessToken, signOut } = useAuth();
   const [rows, setRows] = useState<OltsIncident[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [lossCategories, setLossCategories] = useState<LossCategory[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [error, setError] = useState<ApiError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -197,8 +221,11 @@ export function Olts() {
   const [actionBusy, setActionBusy] = useState(false);
   const [actionIncident, setActionIncident] = useState<OltsIncident | null>(null);
   const [actionConfig, setActionConfig] = useState<ActionConfig | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const canSeeActions = user ? canManageOltsActions(user.backendRoles) : false;
+  const hasAdminOltsParity = user ? canManageOltsActions(user.backendRoles) : false;
+  const isDepartmentScoped = user ? shouldRestrictOltsToDepartment(user.backendRoles) : false;
 
   function handleApiError(nextError: ApiError | null) {
     if (nextError?.code === 'UNAUTHORIZED') {
@@ -221,9 +248,35 @@ export function Olts() {
     setIsLoading(false);
   }, [accessToken, signOut]);
 
+  const loadReferenceData = useCallback(async () => {
+    if (!accessToken) return;
+    const [branchesResponse, departmentsResponse, lossCategoriesResponse, eventTypesResponse] = await Promise.all([
+      listBranches(accessToken),
+      listDepartments(accessToken),
+      listLossCategories(accessToken),
+      listEventTypes(accessToken)
+    ]);
+
+    if (
+      branchesResponse.error?.code === 'UNAUTHORIZED' ||
+      departmentsResponse.error?.code === 'UNAUTHORIZED' ||
+      lossCategoriesResponse.error?.code === 'UNAUTHORIZED' ||
+      eventTypesResponse.error?.code === 'UNAUTHORIZED'
+    ) {
+      signOut();
+      return;
+    }
+
+    if (branchesResponse.data) setBranches(branchesResponse.data);
+    if (departmentsResponse.data) setDepartments(departmentsResponse.data);
+    if (lossCategoriesResponse.data) setLossCategories(lossCategoriesResponse.data);
+    if (eventTypesResponse.data) setEventTypes(eventTypesResponse.data.filter((eventType) => eventType.active));
+  }, [accessToken, signOut]);
+
   useEffect(() => {
     void loadIncidents();
-  }, [loadIncidents]);
+    void loadReferenceData();
+  }, [loadIncidents, loadReferenceData]);
 
   async function loadIncidentDetail(incidentId: string, openDrawer = true): Promise<OltsIncident | null> {
     if (!accessToken) return null;
@@ -302,6 +355,7 @@ export function Olts() {
   async function runAction(payload: WorkflowReasonPayload) {
     if (!accessToken || !actionConfig || !actionIncident) return;
     setActionBusy(true);
+    setActionError(null);
 
     const requester = {
       submit: submitOltsIncident,
@@ -324,10 +378,12 @@ export function Olts() {
         signOut();
         return;
       }
+      setActionError(response.error.message);
       setError(response.error);
       return;
     }
 
+    setActionError(null);
     setActionConfig(null);
     setActionIncident(null);
     setOpenMenuId(null);
@@ -348,15 +404,15 @@ export function Olts() {
       },
       {
         key: 'branchId',
-        header: 'Branch ID',
-        value: (row) => row.branchId,
-        render: (row) => <span className="block max-w-[180px] truncate">{row.branchId}</span>
+        header: 'Branch',
+        value: (row) => row.branchName ?? row.branchId,
+        render: (row) => <span className="block max-w-[180px] truncate">{row.branchName ?? row.branchId}</span>
       },
       {
         key: 'departmentId',
-        header: 'Department ID',
-        value: (row) => row.departmentId,
-        render: (row) => <span className="block max-w-[180px] truncate">{row.departmentId}</span>
+        header: 'Department',
+        value: (row) => row.departmentName ?? row.departmentId,
+        render: (row) => <span className="block max-w-[180px] truncate">{row.departmentName ?? row.departmentId}</span>
       },
       {
         key: 'severity',
@@ -450,9 +506,15 @@ export function Olts() {
     ];
   }, [canSeeActions, openMenuId]);
 
-  const draftCount = rows.filter((row) => row.status === 'DRAFT').length;
-  const pendingCount = rows.filter((row) => row.authorizationStatus !== 'DRAFT').length;
-  const exposure = rows.reduce((total, row) => total + row.netLoss, 0);
+  const visibleRows = useMemo(() => {
+    if (!user) return rows;
+    if (!isDepartmentScoped || !user.departmentId) return rows;
+    return rows.filter((row) => row.departmentId === user.departmentId);
+  }, [isDepartmentScoped, rows, user]);
+
+  const draftCount = visibleRows.filter((row) => row.status === 'DRAFT').length;
+  const pendingCount = visibleRows.filter((row) => row.authorizationStatus !== 'DRAFT').length;
+  const exposure = visibleRows.reduce((total, row) => total + row.netLoss, 0);
 
   return (
     <>
@@ -466,7 +528,7 @@ export function Olts() {
               <RefreshCwIcon className="h-3.5 w-3.5" />
               Refresh
             </Button>
-            <RoleGate allow={['Admin', 'Head', 'RiskManager', 'ProcessOwner']}>
+            <RoleGate allow={['Admin', 'Head', 'RiskManager', 'ProcessOwner', 'Inputter']}>
               <Button
                 variant="accent"
                 size="sm"
@@ -485,14 +547,6 @@ export function Olts() {
         }
       />
 
-      {canSeeActions && (
-        <AlertBanner
-          variant="info"
-          title="Admin and Head users can run OLTS workflow actions from the actions menu."
-          description="Open the three-dot menu on a row to view, update, submit, authorize, return, reject, approve, or delete an incident."
-        />
-      )}
-
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatCard label="Draft incidents" value={String(draftCount)} tone="warning" delta={0} />
         <StatCard label="In workflow" value={String(pendingCount)} tone="info" delta={0} />
@@ -508,7 +562,7 @@ export function Olts() {
       {accessToken && (
         <DataTable
           columns={columns}
-          rows={rows}
+          rows={visibleRows}
           rowKey={(row) => row.id}
           isLoading={isLoading}
           error={error}
@@ -524,6 +578,17 @@ export function Olts() {
         open={formOpen}
         mode={formMode}
         initialValues={formIncident}
+        isSystemAdmin={hasAdminOltsParity}
+        branches={branches}
+        departments={departments}
+        lossCategories={lossCategories}
+        eventTypes={eventTypes}
+        currentBranch={user?.branchId ? { id: user.branchId, code: user.branchCode ?? user.branchId, name: user.branchName ?? user.branchId } : null}
+        currentDepartment={
+          user?.departmentId
+            ? { id: user.departmentId, code: user.departmentCode ?? user.departmentId, name: user.departmentName ?? user.departmentId }
+            : null
+        }
         defaultBranchId={user?.branchId}
         defaultDepartmentId={user?.departmentId}
         isSubmitting={formBusy}
@@ -556,8 +621,8 @@ export function Olts() {
             <DetailRow label="Incident ID">{selectedIncident.incidentId}</DetailRow>
             <DetailRow label="Incident date">{formatDate(selectedIncident.incidentDate)}</DetailRow>
             <DetailRow label="Discovery date">{formatDate(selectedIncident.discoveryDate)}</DetailRow>
-            <DetailRow label="Branch ID">{selectedIncident.branchId}</DetailRow>
-            <DetailRow label="Department ID">{selectedIncident.departmentId}</DetailRow>
+            <DetailRow label="Branch">{selectedIncident.branchName ?? selectedIncident.branchId}</DetailRow>
+            <DetailRow label="Department">{selectedIncident.departmentName ?? selectedIncident.departmentId}</DetailRow>
             <DetailRow label="Severity">
               <StatusBadge status={selectedIncident.severity} />
             </DetailRow>
@@ -584,8 +649,10 @@ export function Olts() {
         action={actionConfig}
         incident={actionIncident}
         busy={actionBusy}
+        error={actionError}
         onClose={() => {
           if (actionBusy) return;
+          setActionError(null);
           setActionConfig(null);
           setActionIncident(null);
         }}

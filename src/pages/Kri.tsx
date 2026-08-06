@@ -1,192 +1,366 @@
-import React, { useState } from 'react';
-import { PlusIcon } from 'lucide-react';
-import { PageBanner } from '../components/shared/PageBanner';
-import { SuccessModal } from '../components/shared/SuccessModal';
-import { RoleGate } from '../components/shared/RoleGate';
-import { Button } from '../components/ui/Button';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { EyeIcon, PencilIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react';
 import { KriForm } from '../components/forms/KriForm';
-import { StatCard } from '../components/shared/StatCard';
-import { StatusBadge } from '../components/shared/StatusBadge';
+import { ConfirmModal } from '../components/shared/ConfirmModal';
 import { DataTable, type Column } from '../components/shared/DataTable';
 import { DetailDrawer, DetailRow } from '../components/shared/DetailDrawer';
-import { useBffQuery } from '../hooks/useBffQuery';
-import { ENDPOINTS } from '../lib/api/endpoints';
-import { formatDate } from '../utils/cn';
-import type { Kri } from '../types';
+import { EmptyState } from '../components/shared/States';
+import { PageBanner } from '../components/shared/PageBanner';
+import { RowActionsMenu, type RowActionItem } from '../components/shared/RowActionsMenu';
+import { RoleGate } from '../components/shared/RoleGate';
+import { StatCard } from '../components/shared/StatCard';
+import { StatusBadge } from '../components/shared/StatusBadge';
+import { SuccessModal } from '../components/shared/SuccessModal';
+import { Button } from '../components/ui/Button';
+import { useAuth } from '../contexts/AuthContext';
+import { createKriRecord, deleteKriRecord, listKriRecords, updateKriRecord } from '../lib/api/client';
+import type { ApiError } from '../lib/api/errors';
+import { formatDate, formatDateTime } from '../utils/cn';
+import type { KriRecord, KriRecordPayload } from '../types';
 
-function Sparkline({ points, status }: {points: number[];status: Kri['breachStatus'];}) {
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const range = max - min || 1;
-  const path = points.
-  map((point, index) => {
-    const x = index / (points.length - 1) * 100;
-    const y = 20 - (point - min) / range * 16;
-    return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-  }).
-  join(' ');
-  const stroke =
-  status === 'Red' ? '#b91c1c' : status === 'Amber' ? '#d97706' : '#15803d';
-  return (
-    <svg viewBox="0 0 100 24" preserveAspectRatio="none" className="h-6 w-24" aria-hidden="true">
-      <path d={path} fill="none" stroke={stroke} strokeWidth={2} />
-    </svg>);
-
+function breachStatus(row: KriRecord): 'Green' | 'Amber' | 'Red' {
+  if (row.currentValue > row.redThreshold) return 'Red';
+  if (row.currentValue > row.amberThreshold) return 'Amber';
+  return 'Green';
 }
 
-const columns: Column<Kri>[] = [
-{
-  key: 'name',
-  header: 'Indicator',
-  value: (row) => row.name,
-  render: (row) => <span className="font-medium text-navy">{row.name}</span>
-},
-{ key: 'category', header: 'Category', filterable: true, value: (row) => row.category },
-{ key: 'owner', header: 'Owner', value: (row) => row.owner },
-{
-  key: 'threshold',
-  header: 'Thresholds',
-  sortable: false,
-  value: (row) => `${row.amberThreshold} / ${row.redThreshold}`,
-  render: (row) =>
-  <span className="tabular text-[11px] text-zinc-500">
-        <span className="text-green-700">≤{row.amberThreshold}</span> ·{' '}
-        <span className="text-amber-600">{row.amberThreshold}–{row.redThreshold}</span> ·{' '}
-        <span className="text-red-700">&gt;{row.redThreshold}</span>
-      </span>
-
-},
-{
-  key: 'currentValue',
-  header: 'Current',
-  align: 'right',
-  value: (row) => row.currentValue,
-  render: (row) =>
-  <span className="font-semibold text-navy">
-        {row.currentValue}
-        <span className="ml-1 text-[10px] font-normal text-zinc-400">{row.unitLabel}</span>
-      </span>
-
-},
-{
-  key: 'trend',
-  header: 'Trend',
-  sortable: false,
-  value: (row) => row.trend[row.trend.length - 1],
-  render: (row) => <Sparkline points={row.trend} status={row.breachStatus} />
-},
-{
-  key: 'breachStatus',
-  header: 'Breach',
-  filterable: true,
-  value: (row) => row.breachStatus,
-  render: (row) => <StatusBadge status={row.breachStatus} />
-},
-{
-  key: 'lastUpdated',
-  header: 'Updated',
-  value: (row) => row.lastUpdated,
-  render: (row) => formatDate(row.lastUpdated)
-}];
-
-
 export function KriPage() {
-  const { data, error, isLoading, refetch } = useBffQuery<Kri[]>(ENDPOINTS.kri.list);
-  const [selected, setSelected] = useState<Kri | null>(null);
+  const { accessToken, signOut } = useAuth();
+  const [rows, setRows] = useState<KriRecord[]>([]);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selected, setSelected] = useState<KriRecord | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const rows = data ?? [];
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+  const [formBusy, setFormBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<KriRecord | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const refetch = useCallback(async () => {
+    if (!accessToken) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    const response = await listKriRecords(accessToken);
+    if (response.error?.code === 'UNAUTHORIZED') {
+      signOut();
+      return;
+    }
+    setRows(response.data ?? []);
+    setError(response.error);
+    setIsLoading(false);
+  }, [accessToken, signOut]);
+
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+
+  async function handleCreate(payload: KriRecordPayload) {
+    if (!accessToken) return;
+    setFormBusy(true);
+    setFormError(null);
+    const response = await createKriRecord(accessToken, payload);
+    setFormBusy(false);
+
+    if (response.error || !response.data) {
+      if (response.error?.code === 'UNAUTHORIZED') {
+        signOut();
+        return;
+      }
+      setFormError(response.error?.message ?? 'Unable to create indicator.');
+      return;
+    }
+
+    setFormOpen(false);
+    setSavedMessage(`Indicator ${response.data.kriId} created successfully.`);
+    await refetch();
+  }
+
+  async function handleUpdate(payload: KriRecordPayload) {
+    if (!accessToken || !selected) return;
+    setFormBusy(true);
+    setFormError(null);
+    const response = await updateKriRecord(accessToken, selected.kriId, payload);
+    setFormBusy(false);
+
+    if (response.error || !response.data) {
+      if (response.error?.code === 'UNAUTHORIZED') {
+        signOut();
+        return;
+      }
+      setFormError(response.error?.message ?? 'Unable to update indicator.');
+      return;
+    }
+
+    setSelected(response.data);
+    setFormOpen(false);
+    setSavedMessage(`Indicator ${response.data.kriId} updated successfully.`);
+    await refetch();
+  }
+
+  async function handleDelete() {
+    if (!accessToken || !deleteTarget) return;
+    setDeleteBusy(true);
+    const response = await deleteKriRecord(accessToken, deleteTarget.kriId);
+    setDeleteBusy(false);
+    if (response.error) {
+      if (response.error.code === 'UNAUTHORIZED') {
+        signOut();
+        return;
+      }
+      setError(response.error);
+      return;
+    }
+
+    if (selected?.id === deleteTarget.id) setSelected(null);
+    setDeleteTarget(null);
+    setSavedMessage(`Indicator ${deleteTarget.kriId} deleted successfully.`);
+    await refetch();
+  }
+
+  const columns = useMemo<Column<KriRecord>[]>(() => [
+    {
+      key: 'kriId',
+      header: 'KRI ID',
+      value: (row) => row.kriId,
+      render: (row) => <span className="font-medium text-navy">{row.kriId}</span>
+    },
+    {
+      key: 'indicatorName',
+      header: 'Indicator',
+      value: (row) => row.indicatorName,
+      render: (row) => <span className="block max-w-[220px] truncate">{row.indicatorName}</span>
+    },
+    { key: 'category', header: 'Category', filterable: true, value: (row) => row.category },
+    { key: 'owner', header: 'Owner', value: (row) => row.owner },
+    { key: 'businessUnit', header: 'Business unit', value: (row) => row.businessUnit },
+    {
+      key: 'threshold',
+      header: 'Thresholds',
+      sortable: false,
+      value: (row) => `${row.greenUpperBound}/${row.amberThreshold}/${row.redThreshold}`,
+      render: (row) => (
+        <span className="tabular text-[11px] text-zinc-500">
+          <span className="text-green-700">≤{row.greenUpperBound}</span> ·{' '}
+          <span className="text-amber-600">{row.amberThreshold}</span> ·{' '}
+          <span className="text-red-700">{row.redThreshold}</span>
+        </span>
+      )
+    },
+    {
+      key: 'currentValue',
+      header: 'Current',
+      align: 'right',
+      value: (row) => row.currentValue,
+      render: (row) => (
+        <span className="font-semibold text-navy">
+          {row.currentValue}
+          <span className="ml-1 text-[10px] font-normal text-zinc-400">{row.unitOfMeasure}</span>
+        </span>
+      )
+    },
+    {
+      key: 'breachStatus',
+      header: 'Breach',
+      filterable: true,
+      value: (row) => breachStatus(row),
+      render: (row) => <StatusBadge status={breachStatus(row)} />
+    },
+    {
+      key: 'updatedAt',
+      header: 'Updated',
+      value: (row) => row.updatedAt,
+      render: (row) => formatDate(row.updatedAt)
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      sortable: false,
+      value: () => 'Actions',
+      render: (row) => {
+        const actions: RowActionItem[] = [
+          {
+            key: 'view',
+            label: 'View indicator',
+            icon: EyeIcon,
+            onClick: () => {
+              setSelected(row);
+              setOpenMenuId(null);
+            }
+          },
+          {
+            key: 'edit',
+            label: 'Update indicator',
+            icon: PencilIcon,
+            onClick: () => {
+              setSelected(row);
+              setFormMode('edit');
+              setFormError(null);
+              setFormOpen(true);
+              setOpenMenuId(null);
+            }
+          },
+          {
+            key: 'delete',
+            label: 'Delete indicator',
+            icon: Trash2Icon,
+            tone: 'danger',
+            onClick: () => {
+              setDeleteTarget(row);
+              setOpenMenuId(null);
+            }
+          }
+        ];
+
+        return (
+          <RowActionsMenu
+            open={openMenuId === row.id}
+            onToggle={() => setOpenMenuId((current) => (current === row.id ? null : row.id))}
+            actions={actions}
+            ariaLabel={`Actions for ${row.kriId}`}
+          />
+        );
+      }
+    }
+  ], [openMenuId]);
 
   return (
     <>
       <PageBanner
         title="Key Risk Indicators"
-        subtitle="Early-warning metrics monitored against board-approved tolerance thresholds"
+        subtitle="Live KRI records monitored against tolerance thresholds"
         breadcrumb={['Kyronix', 'KRI']}
         action={
-        <RoleGate allow={['Admin', 'RiskManager', 'ProcessOwner']}>
-            <Button variant="accent" size="sm" onClick={() => setFormOpen(true)}>
-              <PlusIcon className="h-3.5 w-3.5" />
-              New indicator
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void refetch()}>
+              <RefreshCwIcon className="h-3.5 w-3.5" />
+              Refresh
             </Button>
-          </RoleGate>
-        } />
-      
-
+            <RoleGate allow={['Admin', 'RiskManager', 'ProcessOwner']}>
+              <Button
+                variant="accent"
+                size="sm"
+                onClick={() => {
+                  setSelected(null);
+                  setFormMode('create');
+                  setFormError(null);
+                  setFormOpen(true);
+                }}>
+                <PlusIcon className="h-3.5 w-3.5" />
+                New indicator
+              </Button>
+            </RoleGate>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatCard
           label="Red breaches"
-          value={String(rows.filter((row) => row.breachStatus === 'Red').length)}
+          value={String(rows.filter((row) => breachStatus(row) === 'Red').length)}
           tone="critical"
-          delta={50} />
-        
+          delta={0}
+        />
         <StatCard
           label="Amber warnings"
-          value={String(rows.filter((row) => row.breachStatus === 'Amber').length)}
+          value={String(rows.filter((row) => breachStatus(row) === 'Amber').length)}
           tone="warning"
-          delta={0} />
-        
+          delta={0}
+        />
         <StatCard
           label="Within tolerance"
-          value={String(rows.filter((row) => row.breachStatus === 'Green').length)}
+          value={String(rows.filter((row) => breachStatus(row) === 'Green').length)}
           tone="success"
-          delta={-10} />
-        
+          delta={0}
+        />
       </div>
 
       <DataTable
         columns={columns}
-        rows={data}
+        rows={rows}
         rowKey={(row) => row.id}
         isLoading={isLoading}
         error={error}
-        onRetry={refetch}
+        onRetry={() => void refetch()}
         onRowClick={setSelected}
         searchPlaceholder="Search indicators"
-        exportName="key-risk-indicators" />
-      
+        exportName="key-risk-indicators"
+        pageSize={10}
+      />
 
       <DetailDrawer
         open={selected !== null}
-        title={selected?.name ?? ''}
-        subtitle={selected ? `${selected.category} · ${selected.owner}` : undefined}
-        onClose={() => setSelected(null)}>
-        
+        title={selected?.indicatorName ?? ''}
+        subtitle={selected ? `${selected.kriId} · ${selected.category} · ${selected.owner}` : undefined}
+        onClose={() => setSelected(null)}
+        width="lg">
         {selected &&
         <dl>
             <DetailRow label="Current value">
-              {selected.currentValue} {selected.unitLabel}
+              {selected.currentValue} {selected.unitOfMeasure}
             </DetailRow>
             <DetailRow label="Target">
-              {selected.target} {selected.unitLabel}
+              {selected.target} {selected.unitOfMeasure}
             </DetailRow>
+            <DetailRow label="Direction">{selected.direction}</DetailRow>
+            <DetailRow label="Green upper bound">{selected.greenUpperBound}</DetailRow>
             <DetailRow label="Amber threshold">{selected.amberThreshold}</DetailRow>
             <DetailRow label="Red threshold">{selected.redThreshold}</DetailRow>
             <DetailRow label="Breach status">
-              <StatusBadge status={selected.breachStatus} />
+              <StatusBadge status={breachStatus(selected)} />
             </DetailRow>
-            <DetailRow label="Business unit">{selected.unit}</DetailRow>
-            <DetailRow label="Last updated">{formatDate(selected.lastUpdated)}</DetailRow>
+            <DetailRow label="Business unit">{selected.businessUnit}</DetailRow>
+            <DetailRow label="Measurement frequency">{selected.measurementFrequency}</DetailRow>
+            <DetailRow label="Data source">{selected.dataSource}</DetailRow>
+            <DetailRow label="Linked risk">{selected.linkedRisk || '—'}</DetailRow>
+            <DetailRow label="Escalate to">{selected.escalateTo || '—'}</DetailRow>
+            <DetailRow label="Next review date">{formatDate(selected.nextReviewDate)}</DetailRow>
+            <DetailRow label="Updated at">{formatDateTime(selected.updatedAt)}</DetailRow>
+            <DetailRow label="Updated by">{selected.updatedBy}</DetailRow>
           </dl>
         }
       </DetailDrawer>
 
       <KriForm
         open={formOpen}
+        mode={formMode}
+        initialValues={selected}
+        isSubmitting={formBusy}
+        submitError={formError}
         onClose={() => setFormOpen(false)}
-        onSubmit={() => {
-          setFormOpen(false);
-          setSaved(true);
-        }} />
-      
+        onSubmit={(payload) => (formMode === 'create' ? handleCreate(payload) : handleUpdate(payload))}
+      />
 
       <SuccessModal
-        open={saved}
-        title="Indicator created"
-        description="The new KRI was registered and will report from the next measurement cycle."
-        onClose={() => setSaved(false)} />
-      
-    </>);
+        open={Boolean(savedMessage)}
+        title="Indicator action completed"
+        description={savedMessage ?? undefined}
+        onClose={() => setSavedMessage(null)}
+      />
 
+      <ConfirmModal
+        open={Boolean(deleteTarget)}
+        title={deleteTarget ? `Delete ${deleteTarget.kriId}?` : 'Delete indicator?'}
+        description={
+          deleteTarget
+            ? `This will permanently delete the ${deleteTarget.indicatorName} KRI record. This action cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Delete indicator"
+        cancelLabel="Cancel"
+        busy={deleteBusy}
+        tone="danger"
+        onConfirm={() => void handleDelete()}
+        onClose={() => {
+          if (deleteBusy) return;
+          setDeleteTarget(null);
+        }}
+      />
+    </>
+  );
 }

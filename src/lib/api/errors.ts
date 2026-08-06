@@ -24,3 +24,11 @@ const MESSAGES: Record<ApiErrorCode, string> = {
 export function createApiError(code: ApiErrorCode, correlationId: string): ApiError {
   return { code, message: MESSAGES[code], correlationId };
 }
+
+export function createApiErrorWithMessage(
+  code: ApiErrorCode,
+  correlationId: string,
+  message?: string
+): ApiError {
+  return { code, correlationId, message: message ?? MESSAGES[code] };
+}

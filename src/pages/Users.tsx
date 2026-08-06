@@ -366,7 +366,7 @@ export function Users() {
         title={deleteTarget ? `Delete ${deleteTarget.username}?` : 'Delete user?'}
         description={
           deleteTarget
-            ? `This will delete or suspend the ${deleteTarget.fullName} user account depending on backend policy. This action cannot be undone from the UI.`
+            ? `This will delete or suspend the ${deleteTarget.fullName} user account. This action cannot be undone from the UI.`
             : undefined
         }
         confirmLabel="Delete user"

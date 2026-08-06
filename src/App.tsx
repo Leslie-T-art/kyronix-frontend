@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationsProvider } from './contexts/NotificationsContext';
 import { AppShell } from './components/layout/AppShell';
 import { Login } from './pages/Login';
 import { Forbidden } from './pages/Forbidden';
@@ -17,6 +18,7 @@ import { Branches } from './pages/Branches';
 import { Users } from './pages/Users';
 import { RolesConfiguration } from './pages/RolesConfiguration';
 import { Events } from './pages/Events';
+import { LossCategories } from './pages/LossCategories';
 import { canAccess } from './lib/auth/roles';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/shared/ThemeToggle';
@@ -77,6 +79,13 @@ function Routing() {
           element={
           <Guard engine="events">
               <Events />
+            </Guard>
+          } />
+        <Route
+          path="/loss-categories"
+          element={
+          <Guard engine="lossCategories">
+              <LossCategories />
             </Guard>
           } />
         <Route
@@ -152,10 +161,12 @@ export function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <ThemeToggle className="fixed right-4 top-4 z-[60]" />
-          <Routing />
-        </BrowserRouter>
+        <NotificationsProvider>
+          <BrowserRouter>
+            <ThemeToggle className="fixed right-4 top-4 z-[60]" />
+            <Routing />
+          </BrowserRouter>
+        </NotificationsProvider>
       </AuthProvider>
     </ThemeProvider>);
 
