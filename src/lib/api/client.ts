@@ -10,6 +10,8 @@ import type {
   EventTypePayload,
   LossCategory,
   LossCategoryPayload,
+  OltsConfigurationItem,
+  OltsConfigurationItemPayload,
   InternalNotificationEventPayload,
   KriRecord,
   KriRecordPayload,
@@ -465,6 +467,66 @@ export function updateLossCategory(
 
 export function deleteLossCategory(token: string, lossCategoryId: string): Promise<ApiResponse<null>> {
   return oltsRequest<null>(token, `/olts/loss-categories/${lossCategoryId}`, { method: 'DELETE' });
+}
+
+function oltsConfigCollectionPath(resource: string): string {
+  return `/olts/config/${resource}`;
+}
+
+function oltsConfigItemPath(resource: string, id: string | number): string {
+  return `${oltsConfigCollectionPath(resource)}/${id}`;
+}
+
+export function listOltsConfigurationItems(
+  token: string,
+  resource: string
+): Promise<ApiResponse<OltsConfigurationItem[]>> {
+  return oltsRequest<OltsConfigurationItem[]>(token, oltsConfigCollectionPath(resource), { method: 'GET' });
+}
+
+export function getOltsConfigurationItem(
+  token: string,
+  resource: string,
+  id: string | number
+): Promise<ApiResponse<OltsConfigurationItem>> {
+  return oltsRequest<OltsConfigurationItem>(token, oltsConfigItemPath(resource, id), { method: 'GET' });
+}
+
+export function createOltsConfigurationItem(
+  token: string,
+  resource: string,
+  payload: OltsConfigurationItemPayload
+): Promise<ApiResponse<OltsConfigurationItem>> {
+  return oltsRequest<OltsConfigurationItem>(token, oltsConfigCollectionPath(resource), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateOltsConfigurationItem(
+  token: string,
+  resource: string,
+  id: string | number,
+  payload: OltsConfigurationItemPayload
+): Promise<ApiResponse<OltsConfigurationItem>> {
+  return oltsRequest<OltsConfigurationItem>(token, oltsConfigItemPath(resource, id), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteOltsConfigurationItem(
+  token: string,
+  resource: string,
+  id: string | number
+): Promise<ApiResponse<null>> {
+  return oltsRequest<null>(token, oltsConfigItemPath(resource, id), { method: 'DELETE' });
 }
 
 export function listRoles(token: string): Promise<ApiResponse<RoleConfig[]>> {

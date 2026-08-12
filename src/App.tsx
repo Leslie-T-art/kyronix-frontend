@@ -24,6 +24,18 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/shared/ThemeToggle';
 import type { EngineKey } from './types';
 import { Profile } from './pages/Profile';
+import {
+  ActionStatuses,
+  BaselEventCategories,
+  Controls,
+  Currencies,
+  DataSources,
+  EventStatuses,
+  RecoveryMethods,
+  ResidualRisks,
+  RootCauses,
+  ValidationResults
+} from './pages/SystemConfigurationPage';
 
 function Guard({ engine, children }: {engine: EngineKey;children: React.ReactNode;}) {
   const { user } = useAuth();
@@ -102,6 +114,86 @@ function Routing() {
               <RolesConfiguration />
             </Guard>
           } />
+        <Route
+          path="/system-configurations/event-statuses"
+          element={
+            <Guard engine="eventStatuses">
+              <EventStatuses />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/residual-risks"
+          element={
+            <Guard engine="residualRisks">
+              <ResidualRisks />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/action-statuses"
+          element={
+            <Guard engine="actionStatuses">
+              <ActionStatuses />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/recovery-methods"
+          element={
+            <Guard engine="recoveryMethods">
+              <RecoveryMethods />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/root-causes"
+          element={
+            <Guard engine="rootCauses">
+              <RootCauses />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/basel-event-categories"
+          element={
+            <Guard engine="baselEventCategories">
+              <BaselEventCategories />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/data-sources"
+          element={
+            <Guard engine="dataSources">
+              <DataSources />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/validation-results"
+          element={
+            <Guard engine="validationResults">
+              <ValidationResults />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/controls"
+          element={
+            <Guard engine="controls">
+              <Controls />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/currencies"
+          element={
+            <Guard engine="currencies">
+              <Currencies />
+            </Guard>
+          }
+        />
         <Route
           path="/olts"
           element={

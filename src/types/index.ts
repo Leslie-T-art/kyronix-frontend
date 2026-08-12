@@ -9,6 +9,16 @@ export type EngineKey =
 'lossCategories' |
 'users' |
 'rolesConfig' |
+'eventStatuses' |
+'residualRisks' |
+'actionStatuses' |
+'recoveryMethods' |
+'rootCauses' |
+'baselEventCategories' |
+'dataSources' |
+'validationResults' |
+'controls' |
+'currencies' |
 'olts' |
 'audit' |
 'kri' |
@@ -146,6 +156,25 @@ export interface LossCategoryPayload {
   code: string;
   name: string;
   description: string;
+}
+
+export interface OltsConfigurationItem {
+  id: string | number;
+  code: string;
+  name: string;
+  description: string;
+  displayOrder: number;
+  createdBy?: string | number;
+  createdAt?: string;
+  updatedBy?: string | number;
+  updatedAt?: string;
+}
+
+export interface OltsConfigurationItemPayload {
+  code: string;
+  name: string;
+  description: string;
+  displayOrder: number;
 }
 
 export interface RoleConfig {
