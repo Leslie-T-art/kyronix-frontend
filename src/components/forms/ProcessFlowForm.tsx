@@ -76,7 +76,15 @@ export function ProcessFlowForm({
       subtitle="Process flow API integration"
       formId="process-flow-form"
       submitLabel={isSubmitting ? 'Saving...' : mode === 'create' ? 'Create process flow' : 'Update process flow'}
-      submitDisabled={isSubmitting || form.processFlowName.trim() === '' || form.departmentId === '' || form.validFromDate === '' || form.validToDate === ''}
+      submitDisabled={
+        isSubmitting ||
+        form.processFlowName.trim() === '' ||
+        form.departmentId === '' ||
+        form.description.trim() === '' ||
+        form.validFromDate === '' ||
+        form.validToDate === '' ||
+        (mode === 'create' && !form.document)
+      }
       onClose={onClose}
       onSubmit={handleSubmit}
     >
@@ -108,6 +116,15 @@ export function ProcessFlowForm({
             ))}
           </select>
         </Field>
+        <Field label="Description" htmlFor="process-flow-description" span={3} required>
+          <TextArea
+            id="process-flow-description"
+            value={form.description}
+            onChange={(event) => updateField('description', event.target.value)}
+            placeholder="Describe the process flow"
+            required
+          />
+        </Field>
         <Field label="Valid from date" htmlFor="process-flow-valid-from" required>
           <TextInput
             id="process-flow-valid-from"
@@ -126,24 +143,22 @@ export function ProcessFlowForm({
             required
           />
         </Field>
-        <Field label="Description" htmlFor="process-flow-description" span={3}>
-          <TextArea
-            id="process-flow-description"
-            value={form.description}
-            onChange={(event) => updateField('description', event.target.value)}
-            placeholder="Describe the process flow and its boundaries"
-          />
-        </Field>
         <Field
           label="Document"
           htmlFor="process-flow-document"
           span={3}
-          hint={initialValues?.originalFileName ? `Current file: ${initialValues.originalFileName}` : 'Upload the source process flow document'}
+          required={mode === 'create'}
+          hint={
+            initialValues?.originalFileName
+              ? `Current file: ${initialValues.originalFileName}`
+              : 'Upload the source process flow document'
+          }
         >
           <input
             id="process-flow-document"
             type="file"
             onChange={(event) => updateField('document', event.target.files?.[0] ?? null)}
+            required={mode === 'create'}
             className="block w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-navy file:px-3 file:py-2 file:text-xs file:font-medium file:text-white"
           />
         </Field>

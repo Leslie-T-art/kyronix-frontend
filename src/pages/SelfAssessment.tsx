@@ -25,6 +25,11 @@ import type { ApiError } from '../lib/api/errors';
 import { formatDate, formatDateTime } from '../utils/cn';
 import type { Department, SelfAssessment, SelfAssessmentPayload } from '../types';
 
+interface SelfAssessmentListPayload {
+  content?: SelfAssessment[];
+  totalElements?: number;
+}
+
 function score(impact: number, likelihood: number): number {
   return (impact || 0) * (likelihood || 0);
 }
@@ -82,7 +87,12 @@ export function SelfAssessmentPage() {
     setIsLoading(true);
     const response = await listSelfAssessments(accessToken);
     if (handleUnauthorized(response.error)) return;
-    setRows(response.data ?? []);
+    const payload = response.data as SelfAssessment[] | SelfAssessmentListPayload | null;
+    const nextRows = Array.isArray(payload) ? payload : payload?.content ?? [];
+    setRows(nextRows);
+    if (!Array.isArray(payload) && typeof payload?.totalElements === 'number') {
+      setCount(payload.totalElements);
+    }
     setError(response.error);
     setIsLoading(false);
   }, [accessToken, handleUnauthorized]);

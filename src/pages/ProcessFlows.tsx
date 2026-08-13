@@ -53,6 +53,11 @@ interface ProcessFlowActionConfig {
   description: string;
 }
 
+interface ProcessFlowListPayload {
+  content?: ProcessFlowRecord[];
+  totalElements?: number;
+}
+
 const PROCESS_FLOW_ACTIONS: Record<Exclude<ProcessFlowActionKey, 'delete'>, ProcessFlowActionConfig> = {
   submit: {
     key: 'submit',
@@ -209,7 +214,12 @@ export function ProcessFlowsPage() {
     setIsLoading(true);
     const response = await listProcessFlows(accessToken);
     if (handleUnauthorized(response.error)) return;
-    setRows(response.data ?? []);
+    const payload = response.data as ProcessFlowRecord[] | ProcessFlowListPayload | null;
+    const nextRows = Array.isArray(payload) ? payload : payload?.content ?? [];
+    setRows(nextRows);
+    if (!Array.isArray(payload) && typeof payload?.totalElements === 'number') {
+      setCount(payload.totalElements);
+    }
     setError(response.error);
     setIsLoading(false);
   }, [accessToken, handleUnauthorized]);

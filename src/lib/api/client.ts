@@ -690,7 +690,7 @@ export function listSelfAssessments(
 ): Promise<ApiResponse<SelfAssessment[]>> {
   return selfAssessmentRequest<SelfAssessment[]>(
     token,
-    `/self-assessments?arg0=${page}&arg1=${size}&arg2=${encodeURIComponent(sortBy)}&arg3=${encodeURIComponent(direction)}`,
+    `/self-assessments?page=${page}&size=${size}&sortBy=${encodeURIComponent(sortBy)}&sortDirection=${encodeURIComponent(direction)}`,
     { method: 'GET' }
   );
 }
