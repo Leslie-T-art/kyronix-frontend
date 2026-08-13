@@ -418,6 +418,43 @@ export interface ProcessFlow {
   steps: {name: string;actor: string;control: string;}[];
 }
 
+export interface ProcessFlowRecord {
+  id: string | number;
+  flowReference: string;
+  processFlowName: string;
+  departmentId: string | number;
+  description: string;
+  validFromDate: string;
+  validToDate: string;
+  workflowStatus: string;
+  originalFileName?: string;
+  contentType?: string;
+  fileSize?: number;
+  bucketName?: string;
+  objectKey?: string;
+  inputterUserId?: string | number;
+  inputterUsername?: string;
+  authorizerUserId?: string | number;
+  authorizerUsername?: string;
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface ProcessFlowPayload {
+  processFlowName: string;
+  departmentId: number;
+  description: string;
+  validFromDate: string;
+  validToDate: string;
+  document?: File | null;
+}
+
+export interface WorkflowCommentPayload {
+  comment: string;
+}
+
 export interface SelfAssessment {
   id: string | number;
   rcsaId: string;

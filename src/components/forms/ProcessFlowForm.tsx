@@ -1,138 +1,166 @@
-import React, { useState } from 'react';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Loader2Icon } from 'lucide-react';
+import type { Department, ProcessFlowPayload, ProcessFlowRecord } from '../../types';
 import { FormDrawer } from '../shared/FormDrawer';
-import { Field, FormSection, SelectInput, TextArea, TextInput } from '../ui/Field';
-import { Button } from '../ui/Button';
-import { riskEntries } from '../../data/riskRegister';
-
-const DEPARTMENTS = [
-'Retail Banking',
-'Corporate Banking',
-'Treasury',
-'Operations',
-'Technology',
-'Compliance',
-'Finance',
-'Procurement',
-'Operational Risk'];
-
-const STATUSES = ['Draft', 'In Review', 'Approved', 'Expired'];
-const CRITICALITY = ['Low', 'Medium', 'High', 'Critical'];
+import { Field, FormSection, TextArea, TextInput } from '../ui/Field';
 
 interface ProcessFlowFormProps {
   open: boolean;
+  mode: 'create' | 'edit';
+  departments: Department[];
+  initialValues?: ProcessFlowRecord | null;
+  isSubmitting?: boolean;
+  submitError?: string | null;
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: (payload: ProcessFlowPayload) => Promise<void> | void;
 }
 
-export function ProcessFlowForm({ open, onClose, onSubmit }: ProcessFlowFormProps) {
-  const [steps, setSteps] = useState([{ id: 1 }]);
+interface FormState {
+  processFlowName: string;
+  departmentId: string;
+  description: string;
+  validFromDate: string;
+  validToDate: string;
+  document: File | null;
+}
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+function toFormState(initialValues?: ProcessFlowRecord | null): FormState {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    processFlowName: initialValues?.processFlowName ?? '',
+    departmentId: initialValues?.departmentId ? String(initialValues.departmentId) : '',
+    description: initialValues?.description ?? '',
+    validFromDate: initialValues?.validFromDate ?? today,
+    validToDate: initialValues?.validToDate ?? today,
+    document: null
+  };
+}
+
+export function ProcessFlowForm({
+  open,
+  mode,
+  departments,
+  initialValues,
+  isSubmitting = false,
+  submitError,
+  onClose,
+  onSubmit
+}: ProcessFlowFormProps) {
+  const [form, setForm] = useState<FormState>(() => toFormState(initialValues));
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(toFormState(initialValues));
+  }, [open, initialValues]);
+
+  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit();
+    await onSubmit({
+      processFlowName: form.processFlowName.trim(),
+      departmentId: Number(form.departmentId) || 0,
+      description: form.description.trim(),
+      validFromDate: form.validFromDate,
+      validToDate: form.validToDate,
+      document: form.document
+    });
   }
 
   return (
     <FormDrawer
       open={open}
-      title="New process flow"
-      subtitle="Process Flows · document the process, its steps and control points"
-      formId="process-form"
-      submitLabel="Create process"
+      title={mode === 'create' ? 'Create process flow' : 'Update process flow'}
+      subtitle="Process flow API integration"
+      formId="process-flow-form"
+      submitLabel={isSubmitting ? 'Saving...' : mode === 'create' ? 'Create process flow' : 'Update process flow'}
+      submitDisabled={isSubmitting || form.processFlowName.trim() === '' || form.departmentId === '' || form.validFromDate === '' || form.validToDate === ''}
       onClose={onClose}
-      onSubmit={handleSubmit}>
-      
-      <FormSection title="Process details">
-        <Field label="Process ID" htmlFor="process-id" required>
-          <TextInput id="process-id" defaultValue="PRC-022" readOnly />
+      onSubmit={handleSubmit}
+    >
+      <FormSection title="Process flow details">
+        <Field label="Process flow name" htmlFor="process-flow-name" required>
+          <TextInput
+            id="process-flow-name"
+            value={form.processFlowName}
+            onChange={(event) => updateField('processFlowName', event.target.value)}
+            placeholder="Retail account opening"
+            required
+          />
         </Field>
-        <Field label="Process name" htmlFor="process-name" span={2} required>
-          <TextInput id="process-name" placeholder="e.g. Retail account opening" />
+        <Field label="Department" htmlFor="process-flow-department" required>
+          <select
+            id="process-flow-department"
+            value={form.departmentId}
+            onChange={(event) => updateField('departmentId', event.target.value)}
+            className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
+            required
+          >
+            <option value="" disabled>
+              Select department
+            </option>
+            {departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.code} - {department.name}
+              </option>
+            ))}
+          </select>
         </Field>
-        <Field label="Department" htmlFor="process-department" required>
-          <SelectInput id="process-department" options={DEPARTMENTS} placeholder="Select department" />
+        <Field label="Valid from date" htmlFor="process-flow-valid-from" required>
+          <TextInput
+            id="process-flow-valid-from"
+            type="date"
+            value={form.validFromDate}
+            onChange={(event) => updateField('validFromDate', event.target.value)}
+            required
+          />
         </Field>
-        <Field label="Process owner" htmlFor="process-owner" required>
-          <TextInput id="process-owner" placeholder="Full name" />
+        <Field label="Valid to date" htmlFor="process-flow-valid-to" required>
+          <TextInput
+            id="process-flow-valid-to"
+            type="date"
+            value={form.validToDate}
+            onChange={(event) => updateField('validToDate', event.target.value)}
+            required
+          />
         </Field>
-        <Field label="Version" htmlFor="process-version" required>
-          <TextInput id="process-version" placeholder="v1.0" />
+        <Field label="Description" htmlFor="process-flow-description" span={3}>
+          <TextArea
+            id="process-flow-description"
+            value={form.description}
+            onChange={(event) => updateField('description', event.target.value)}
+            placeholder="Describe the process flow and its boundaries"
+          />
         </Field>
-        <Field label="Criticality" htmlFor="process-criticality">
-          <SelectInput id="process-criticality" options={CRITICALITY} placeholder="Select" />
-        </Field>
-        <Field label="Status" htmlFor="process-status" required>
-          <SelectInput id="process-status" options={STATUSES} placeholder="Select status" />
-        </Field>
-        <Field label="Next review date" htmlFor="process-review" required>
-          <TextInput id="process-review" type="date" />
-        </Field>
-        <Field label="Purpose" htmlFor="process-purpose" span={3}>
-          <TextArea id="process-purpose" placeholder="What the process achieves and its boundaries" />
+        <Field
+          label="Document"
+          htmlFor="process-flow-document"
+          span={3}
+          hint={initialValues?.originalFileName ? `Current file: ${initialValues.originalFileName}` : 'Upload the source process flow document'}
+        >
+          <input
+            id="process-flow-document"
+            type="file"
+            onChange={(event) => updateField('document', event.target.files?.[0] ?? null)}
+            className="block w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-navy file:px-3 file:py-2 file:text-xs file:font-medium file:text-white"
+          />
         </Field>
       </FormSection>
 
-      <FormSection title="Risk linking">
-        <Field label="Linked risks" htmlFor="process-risks" span={2}>
-          <SelectInput
-            id="process-risks"
-            options={riskEntries.map((risk) => `${risk.id} — ${risk.title}`)}
-            placeholder="Select a register entry" />
-          
-        </Field>
-        <Field label="Key control count" htmlFor="process-controls">
-          <TextInput id="process-controls" type="number" min={0} placeholder="0" />
-        </Field>
-      </FormSection>
-
-      <section className="rounded-xl border border-zinc-200 p-4">
-        <header className="mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-navy">Process steps</h3>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Step, performing actor and its control</p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setSteps((current) => [...current, { id: Date.now() }])}>
-            
-            <PlusIcon className="h-3.5 w-3.5" />
-            Add step
-          </Button>
-        </header>
-
-        <div className="space-y-3">
-          {steps.map((step, index) =>
-          <div key={step.id} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label={`Step ${index + 1} name`}>
-                <TextInput placeholder="e.g. KYC document verification" />
-              </Field>
-              <Field label="Actor">
-                <TextInput placeholder="Role performing the step" />
-              </Field>
-              <Field label="Control">
-                <div className="flex items-center gap-2">
-                  <TextInput placeholder="Control applied" />
-                  {steps.length > 1 &&
-                <button
-                  type="button"
-                  aria-label={`Remove step ${index + 1}`}
-                  onClick={() =>
-                  setSteps((current) => current.filter((item) => item.id !== step.id))
-                  }
-                  className="rounded-xl border border-zinc-200 p-2 text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-700">
-                  
-                      <Trash2Icon className="h-3.5 w-3.5" />
-                    </button>
-                }
-                </div>
-              </Field>
-            </div>
+      {(submitError || isSubmitting) && (
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
+          {isSubmitting ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+              Saving process flow...
+            </span>
+          ) : (
+            submitError
           )}
         </div>
-      </section>
-    </FormDrawer>);
-
+      )}
+    </FormDrawer>
+  );
 }

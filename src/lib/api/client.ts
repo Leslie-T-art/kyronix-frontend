@@ -20,6 +20,8 @@ import type {
   NotificationUnreadCount,
   OltsIncident,
   OltsIncidentPayload,
+  ProcessFlowPayload,
+  ProcessFlowRecord,
   SelfAssessment,
   SelfAssessmentPayload,
   RiskRecord,
@@ -28,7 +30,8 @@ import type {
   RoleConfigPayload,
   Role,
   TreatmentStrategy,
-  TreatmentStrategyPayload
+  TreatmentStrategyPayload,
+  WorkflowCommentPayload
 } from '../../types';
 import { createApiError, createApiErrorWithMessage, type ApiError } from './errors';
 import { resolveBffRoute } from './bffRoutes';
@@ -131,6 +134,7 @@ const KRI_BASE_URL = trimTrailingSlash(import.meta.env.KRI_BASE_URL);
 const NOTIFICATIONS_BASE_URL = trimTrailingSlash(import.meta.env.NOTIFICATIONS_BASE_URL);
 const RISK_REGISTER_BASE_URL = trimTrailingSlash(import.meta.env.RISK_REGISTER_BASE_URL);
 const SELF_ASSESSMENT_BASE_URL = trimTrailingSlash(import.meta.env.SELF_ASSESSMENT_BASE_URL);
+const PROCESS_FLOWS_BASE_URL = trimTrailingSlash(import.meta.env.PROCESS_FLOWS_BASE_URL);
 
 export function getRequestLog(): RequestLog[] {
   return requestLog;
@@ -172,6 +176,11 @@ function resolveRiskRegisterUrl(path: string): string | null {
 function resolveSelfAssessmentUrl(path: string): string | null {
   if (!SELF_ASSESSMENT_BASE_URL) return null;
   return `${SELF_ASSESSMENT_BASE_URL}${path}`;
+}
+
+function resolveProcessFlowsUrl(path: string): string | null {
+  if (!PROCESS_FLOWS_BASE_URL) return null;
+  return `${PROCESS_FLOWS_BASE_URL}${path}`;
 }
 
 function formatFieldErrors(fieldErrors?: Record<string, string>): string | undefined {
@@ -246,6 +255,62 @@ async function serviceRequest<T>(
       data: payload.data ?? null,
       error: null,
       meta: { correlationId: correlation, durationMs: Date.now() - started }
+    };
+  } catch {
+    return {
+      data: null,
+      error: createApiError('UPSTREAM', id),
+      meta: { correlationId: id, durationMs: Date.now() - started }
+    };
+  }
+}
+
+async function serviceBlobRequest(
+  url: string | null,
+  misconfigurationMessage: string,
+  init: RequestInit
+): Promise<ApiResponse<Blob>> {
+  const started = Date.now();
+  const id = correlationId();
+
+  if (!url) {
+    return {
+      data: null,
+      error: {
+        code: 'UPSTREAM',
+        correlationId: id,
+        message: misconfigurationMessage
+      },
+      meta: { correlationId: id, durationMs: Date.now() - started }
+    };
+  }
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        accept: '*/*',
+        ...(init.headers ?? {})
+      }
+    });
+
+    if (!response.ok) {
+      const raw = await response.text();
+      const payload = raw ? JSON.parse(raw) as Partial<ApiEnvelope<unknown>> & ProblemDetailPayload : {};
+      const correlation = payload.correlationId ?? response.headers.get('x-correlation-id') ?? id;
+      const message = payload.detail ?? payload.message ?? payload.title;
+
+      return {
+        data: null,
+        error: mapStatusToError(response.status, correlation, message, payload.fieldErrors),
+        meta: { correlationId: correlation, durationMs: Date.now() - started }
+      };
+    }
+
+    return {
+      data: await response.blob(),
+      error: null,
+      meta: { correlationId: response.headers.get('x-correlation-id') ?? id, durationMs: Date.now() - started }
     };
   } catch {
     return {
@@ -667,6 +732,144 @@ export function deleteSelfAssessment(token: string, id: string | number): Promis
 
 export function countSelfAssessments(token: string, departmentId: string | number): Promise<ApiResponse<number>> {
   return selfAssessmentRequest<number>(token, `/self-assessments/count?arg0=${departmentId}`, { method: 'GET' });
+}
+
+function processFlowsRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {
+  return serviceRequest<T>(
+    resolveProcessFlowsUrl(path),
+    'PROCESS_FLOWS_BASE_URL is not configured for this environment.',
+    {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init.headers ?? {})
+      }
+    }
+  );
+}
+
+function processFlowsBlobRequest(token: string, path: string, init: RequestInit): Promise<ApiResponse<Blob>> {
+  return serviceBlobRequest(
+    resolveProcessFlowsUrl(path),
+    'PROCESS_FLOWS_BASE_URL is not configured for this environment.',
+    {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init.headers ?? {})
+      }
+    }
+  );
+}
+
+function toProcessFlowFormData(payload: ProcessFlowPayload): FormData {
+  const formData = new FormData();
+  formData.append('processFlowName', payload.processFlowName);
+  formData.append('departmentId', String(payload.departmentId));
+  formData.append('description', payload.description);
+  formData.append('validFromDate', payload.validFromDate);
+  formData.append('validToDate', payload.validToDate);
+  if (payload.document) {
+    formData.append('document', payload.document);
+  }
+  return formData;
+}
+
+export function listProcessFlows(
+  token: string,
+  page = 0,
+  size = 20,
+  sortBy = 'createdAt',
+  direction = 'desc'
+): Promise<ApiResponse<ProcessFlowRecord[]>> {
+  return processFlowsRequest<ProcessFlowRecord[]>(
+    token,
+    `/process-flows?arg0=${page}&arg1=${size}&arg2=${encodeURIComponent(sortBy)}&arg3=${encodeURIComponent(direction)}`,
+    { method: 'GET' }
+  );
+}
+
+export function getProcessFlow(token: string, id: string | number): Promise<ApiResponse<ProcessFlowRecord>> {
+  return processFlowsRequest<ProcessFlowRecord>(token, `/process-flows/${id}`, { method: 'GET' });
+}
+
+export function createProcessFlow(
+  token: string,
+  payload: ProcessFlowPayload
+): Promise<ApiResponse<ProcessFlowRecord>> {
+  return processFlowsRequest<ProcessFlowRecord>(token, '/process-flows', {
+    method: 'POST',
+    body: toProcessFlowFormData(payload)
+  });
+}
+
+export function updateProcessFlow(
+  token: string,
+  id: string | number,
+  payload: ProcessFlowPayload
+): Promise<ApiResponse<ProcessFlowRecord>> {
+  return processFlowsRequest<ProcessFlowRecord>(token, `/process-flows/${id}`, {
+    method: 'PUT',
+    body: toProcessFlowFormData(payload)
+  });
+}
+
+export function deleteProcessFlow(token: string, id: string | number): Promise<ApiResponse<null>> {
+  return processFlowsRequest<null>(token, `/process-flows/${id}`, { method: 'DELETE' });
+}
+
+export function submitProcessFlow(token: string, id: string | number): Promise<ApiResponse<ProcessFlowRecord>> {
+  return processFlowsRequest<ProcessFlowRecord>(token, `/process-flows/${id}/submit`, { method: 'POST' });
+}
+
+export function returnProcessFlow(
+  token: string,
+  id: string | number,
+  payload: WorkflowCommentPayload
+): Promise<ApiResponse<ProcessFlowRecord>> {
+  return processFlowsRequest<ProcessFlowRecord>(token, `/process-flows/${id}/return`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function rejectProcessFlow(
+  token: string,
+  id: string | number,
+  payload: WorkflowCommentPayload
+): Promise<ApiResponse<ProcessFlowRecord>> {
+  return processFlowsRequest<ProcessFlowRecord>(token, `/process-flows/${id}/reject`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function approveProcessFlow(
+  token: string,
+  id: string | number,
+  payload: WorkflowCommentPayload
+): Promise<ApiResponse<ProcessFlowRecord>> {
+  return processFlowsRequest<ProcessFlowRecord>(token, `/process-flows/${id}/approve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function downloadProcessFlowDocument(token: string, id: string | number): Promise<ApiResponse<Blob>> {
+  return processFlowsBlobRequest(token, `/process-flows/${id}/document`, { method: 'GET' });
+}
+
+export function countProcessFlows(token: string): Promise<ApiResponse<number>> {
+  return processFlowsRequest<number>(token, '/process-flows/count', { method: 'GET' });
 }
 
 function kriRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {

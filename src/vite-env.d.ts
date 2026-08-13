@@ -6,6 +6,8 @@ interface ImportMetaEnv {
   readonly KRI_BASE_URL?: string;
   readonly NOTIFICATIONS_BASE_URL?: string;
   readonly RISK_REGISTER_BASE_URL?: string;
+  readonly SELF_ASSESSMENT_BASE_URL?: string;
+  readonly PROCESS_FLOWS_BASE_URL?: string;
 }
 
 interface ImportMeta {
