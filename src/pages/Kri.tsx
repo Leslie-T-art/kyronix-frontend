@@ -13,10 +13,17 @@ import { StatusBadge } from '../components/shared/StatusBadge';
 import { SuccessModal } from '../components/shared/SuccessModal';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
-import { createKriRecord, deleteKriRecord, listKriRecords, updateKriRecord } from '../lib/api/client';
+import {
+  createKriRecord,
+  deleteKriRecord,
+  listDepartments,
+  listKriRecords,
+  listRiskRecords,
+  updateKriRecord
+} from '../lib/api/client';
 import type { ApiError } from '../lib/api/errors';
 import { formatDate, formatDateTime } from '../utils/cn';
-import type { KriRecord, KriRecordPayload } from '../types';
+import type { Department, KriRecord, KriRecordPayload, RiskRecord } from '../types';
 
 function breachStatus(row: KriRecord): 'Green' | 'Amber' | 'Red' {
   if (row.currentValue > row.redThreshold) return 'Red';
@@ -27,6 +34,8 @@ function breachStatus(row: KriRecord): 'Green' | 'Amber' | 'Red' {
 export function KriPage() {
   const { accessToken, signOut } = useAuth();
   const [rows, setRows] = useState<KriRecord[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [riskRecords, setRiskRecords] = useState<RiskRecord[]>([]);
   const [error, setError] = useState<ApiError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selected, setSelected] = useState<KriRecord | null>(null);
@@ -59,6 +68,27 @@ export function KriPage() {
   useEffect(() => {
     void refetch();
   }, [refetch]);
+
+  const loadFormOptions = useCallback(async () => {
+    if (!accessToken) return;
+
+    const [departmentsResponse, riskRecordsResponse] = await Promise.all([
+      listDepartments(accessToken),
+      listRiskRecords(accessToken)
+    ]);
+
+    if (departmentsResponse.error?.code === 'UNAUTHORIZED' || riskRecordsResponse.error?.code === 'UNAUTHORIZED') {
+      signOut();
+      return;
+    }
+
+    if (departmentsResponse.data) setDepartments(departmentsResponse.data.filter((department) => department.active));
+    if (riskRecordsResponse.data) setRiskRecords(riskRecordsResponse.data);
+  }, [accessToken, signOut]);
+
+  useEffect(() => {
+    void loadFormOptions();
+  }, [loadFormOptions]);
 
   async function handleCreate(payload: KriRecordPayload) {
     if (!accessToken) return;
@@ -330,6 +360,8 @@ export function KriPage() {
         open={formOpen}
         mode={formMode}
         initialValues={selected}
+        departments={departments}
+        riskRecords={riskRecords}
         isSubmitting={formBusy}
         submitError={formError}
         onClose={() => setFormOpen(false)}

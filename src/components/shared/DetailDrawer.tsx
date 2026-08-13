@@ -14,6 +14,7 @@ interface DetailDrawerProps {
   title: string;
   subtitle?: string;
   onClose: () => void;
+  headerActions?: React.ReactNode;
   footer?: React.ReactNode;
   width?: DrawerWidth;
   children: React.ReactNode;
@@ -24,6 +25,7 @@ export function DetailDrawer({
   title,
   subtitle,
   onClose,
+  headerActions,
   footer,
   width = 'md',
   children
@@ -57,14 +59,17 @@ export function DetailDrawer({
             <h2 className="truncate text-sm font-semibold text-navy">{title}</h2>
             {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close panel"
-            className="rounded-xl p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy">
-            
-            <XIcon className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {headerActions}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close panel"
+              className="rounded-xl p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy">
+              
+              <XIcon className="h-4 w-4" />
+            </button>
+          </div>
         </header>
         <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer && <footer className="border-t border-zinc-200 px-5 py-3">{footer}</footer>}

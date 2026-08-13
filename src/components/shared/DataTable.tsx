@@ -27,6 +27,12 @@ export interface Column<T> {
   render?: (row: T) => React.ReactNode;
 }
 
+export interface ExportColumn<T> {
+  key: string;
+  header: string;
+  value: (row: T) => string | number | boolean | null | undefined;
+}
+
 interface DataTableProps<T> {
   columns: Column<T>[];
   rows: T[] | null;
@@ -37,6 +43,7 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   searchPlaceholder?: string;
   exportName?: string;
+  exportColumns?: ExportColumn<T>[];
   pageSize?: number;
 }
 
@@ -52,6 +59,7 @@ export function DataTable<T>({
   onRowClick,
   searchPlaceholder = 'Search records',
   exportName = 'export',
+  exportColumns,
   pageSize = PAGE_SIZE
 }: DataTableProps<T>) {
   const { user } = useAuth();
@@ -114,10 +122,15 @@ export function DataTable<T>({
   }
 
   function exportCsv() {
-    const header = visibleColumns.map((column) => column.header).join(',');
+    const columnsToExport = exportColumns ?? visibleColumns.map((column) => ({
+      key: column.key,
+      header: column.header,
+      value: column.value
+    }));
+    const header = columnsToExport.map((column) => column.header).join(',');
     const body = sorted.
     map((row) =>
-    visibleColumns.map((column) => `"${String(column.value(row)).replace(/"/g, '""')}"`).join(',')
+    columnsToExport.map((column) => `"${String(column.value(row) ?? '').replace(/"/g, '""')}"`).join(',')
     ).
     join('\n');
     const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8;' });

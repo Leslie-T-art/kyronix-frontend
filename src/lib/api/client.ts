@@ -20,11 +20,15 @@ import type {
   NotificationUnreadCount,
   OltsIncident,
   OltsIncidentPayload,
+  SelfAssessment,
+  SelfAssessmentPayload,
   RiskRecord,
   RiskRecordPayload,
   RoleConfig,
   RoleConfigPayload,
-  Role
+  Role,
+  TreatmentStrategy,
+  TreatmentStrategyPayload
 } from '../../types';
 import { createApiError, createApiErrorWithMessage, type ApiError } from './errors';
 import { resolveBffRoute } from './bffRoutes';
@@ -126,6 +130,7 @@ const OLTS_BASE_URL = trimTrailingSlash(import.meta.env.OLTS_BASE_URL);
 const KRI_BASE_URL = trimTrailingSlash(import.meta.env.KRI_BASE_URL);
 const NOTIFICATIONS_BASE_URL = trimTrailingSlash(import.meta.env.NOTIFICATIONS_BASE_URL);
 const RISK_REGISTER_BASE_URL = trimTrailingSlash(import.meta.env.RISK_REGISTER_BASE_URL);
+const SELF_ASSESSMENT_BASE_URL = trimTrailingSlash(import.meta.env.SELF_ASSESSMENT_BASE_URL);
 
 export function getRequestLog(): RequestLog[] {
   return requestLog;
@@ -162,6 +167,11 @@ function resolveNotificationsUrl(path: string): string | null {
 function resolveRiskRegisterUrl(path: string): string | null {
   if (!RISK_REGISTER_BASE_URL) return null;
   return `${RISK_REGISTER_BASE_URL}${path}`;
+}
+
+function resolveSelfAssessmentUrl(path: string): string | null {
+  if (!SELF_ASSESSMENT_BASE_URL) return null;
+  return `${SELF_ASSESSMENT_BASE_URL}${path}`;
 }
 
 function formatFieldErrors(fieldErrors?: Record<string, string>): string | undefined {
@@ -596,6 +606,69 @@ export function deleteAdminUser(token: string, id: string): Promise<ApiResponse<
   return authServiceRequest<null>(token, `/admin/users/${id}`, { method: 'DELETE' });
 }
 
+function selfAssessmentRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {
+  return serviceRequest<T>(resolveSelfAssessmentUrl(path), 'SELF_ASSESSMENT_BASE_URL is not configured for this environment.', {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(init.headers ?? {})
+    }
+  });
+}
+
+export function listSelfAssessments(
+  token: string,
+  page = 0,
+  size = 20,
+  sortBy = 'createdAt',
+  direction = 'desc'
+): Promise<ApiResponse<SelfAssessment[]>> {
+  return selfAssessmentRequest<SelfAssessment[]>(
+    token,
+    `/self-assessments?arg0=${page}&arg1=${size}&arg2=${encodeURIComponent(sortBy)}&arg3=${encodeURIComponent(direction)}`,
+    { method: 'GET' }
+  );
+}
+
+export function getSelfAssessment(token: string, id: string | number): Promise<ApiResponse<SelfAssessment>> {
+  return selfAssessmentRequest<SelfAssessment>(token, `/self-assessments/${id}`, { method: 'GET' });
+}
+
+export function createSelfAssessment(
+  token: string,
+  payload: SelfAssessmentPayload
+): Promise<ApiResponse<SelfAssessment>> {
+  return selfAssessmentRequest<SelfAssessment>(token, '/self-assessments', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateSelfAssessment(
+  token: string,
+  id: string | number,
+  payload: SelfAssessmentPayload
+): Promise<ApiResponse<SelfAssessment>> {
+  return selfAssessmentRequest<SelfAssessment>(token, `/self-assessments/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteSelfAssessment(token: string, id: string | number): Promise<ApiResponse<null>> {
+  return selfAssessmentRequest<null>(token, `/self-assessments/${id}`, { method: 'DELETE' });
+}
+
+export function countSelfAssessments(token: string, departmentId: string | number): Promise<ApiResponse<number>> {
+  return selfAssessmentRequest<number>(token, `/self-assessments/count?arg0=${departmentId}`, { method: 'GET' });
+}
+
 function kriRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {
   return serviceRequest<T>(resolveKriUrl(path), 'KRI_BASE_URL is not configured for this environment.', {
     ...init,
@@ -622,6 +695,48 @@ function riskRegisterRequest<T>(token: string, path: string, init: RequestInit):
 
 export function listKriRecords(token: string): Promise<ApiResponse<KriRecord[]>> {
   return kriRequest<KriRecord[]>(token, '/kri/records', { method: 'GET' });
+}
+
+export function listTreatmentStrategies(token: string): Promise<ApiResponse<TreatmentStrategy[]>> {
+  return kriRequest<TreatmentStrategy[]>(token, '/kri/treatment-strategies', { method: 'GET' });
+}
+
+export function getTreatmentStrategy(
+  token: string,
+  id: string | number
+): Promise<ApiResponse<TreatmentStrategy>> {
+  return kriRequest<TreatmentStrategy>(token, `/kri/treatment-strategies/${id}`, { method: 'GET' });
+}
+
+export function createTreatmentStrategy(
+  token: string,
+  payload: TreatmentStrategyPayload
+): Promise<ApiResponse<TreatmentStrategy>> {
+  return kriRequest<TreatmentStrategy>(token, '/kri/treatment-strategies', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateTreatmentStrategy(
+  token: string,
+  id: string | number,
+  payload: TreatmentStrategyPayload
+): Promise<ApiResponse<TreatmentStrategy>> {
+  return kriRequest<TreatmentStrategy>(token, `/kri/treatment-strategies/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteTreatmentStrategy(token: string, id: string | number): Promise<ApiResponse<null>> {
+  return kriRequest<null>(token, `/kri/treatment-strategies/${id}`, { method: 'DELETE' });
 }
 
 export function createKriRecord(token: string, payload: KriRecordPayload): Promise<ApiResponse<KriRecord>> {
@@ -862,8 +977,8 @@ export function listOltsIncidents(token: string): Promise<ApiResponse<OltsIncide
   return oltsRequest<OltsIncident[]>(token, '/olts/incidents', { method: 'GET' });
 }
 
-export function getOltsIncident(token: string, incidentId: string): Promise<ApiResponse<OltsIncident>> {
-  return oltsRequest<OltsIncident>(token, `/olts/incidents/${incidentId}`, { method: 'GET' });
+export function getOltsIncident(token: string, eventId: string): Promise<ApiResponse<OltsIncident>> {
+  return oltsRequest<OltsIncident>(token, `/olts/incidents/${eventId}`, { method: 'GET' });
 }
 
 export function createOltsIncident(token: string, payload: OltsIncidentPayload): Promise<ApiResponse<OltsIncident>> {
@@ -878,10 +993,10 @@ export function createOltsIncident(token: string, payload: OltsIncidentPayload):
 
 export function updateOltsIncident(
   token: string,
-  incidentId: string,
+  eventId: string,
   payload: OltsIncidentPayload
 ): Promise<ApiResponse<OltsIncident>> {
-  return oltsRequest<OltsIncident>(token, `/olts/incidents/${incidentId}`, {
+  return oltsRequest<OltsIncident>(token, `/olts/incidents/${eventId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json'
@@ -890,16 +1005,16 @@ export function updateOltsIncident(
   });
 }
 
-export function deleteOltsIncident(token: string, incidentId: string): Promise<ApiResponse<null>> {
-  return oltsRequest<null>(token, `/olts/incidents/${incidentId}`, { method: 'DELETE' });
+export function deleteOltsIncident(token: string, eventId: string): Promise<ApiResponse<null>> {
+  return oltsRequest<null>(token, `/olts/incidents/${eventId}`, { method: 'DELETE' });
 }
 
 export function submitOltsIncident(
   token: string,
-  incidentId: string,
+  eventId: string,
   payload: WorkflowReasonPayload
 ): Promise<ApiResponse<OltsIncident>> {
-  return oltsRequest<OltsIncident>(token, `/olts/incidents/${incidentId}/submit`, {
+  return oltsRequest<OltsIncident>(token, `/olts/incidents/${eventId}/submit`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -910,11 +1025,11 @@ export function submitOltsIncident(
 
 function oltsAuthorizationAction(
   token: string,
-  incidentId: string,
+  eventId: string,
   action: 'start' | 'return' | 'reject' | 'approve',
   payload: WorkflowReasonPayload
 ): Promise<ApiResponse<OltsIncident>> {
-  return oltsRequest<OltsIncident>(token, `/olts/incidents/${incidentId}/authorization/${action}`, {
+  return oltsRequest<OltsIncident>(token, `/olts/incidents/${eventId}/authorization/${action}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -925,32 +1040,32 @@ function oltsAuthorizationAction(
 
 export function startOltsAuthorization(
   token: string,
-  incidentId: string,
+  eventId: string,
   payload: WorkflowReasonPayload
 ): Promise<ApiResponse<OltsIncident>> {
-  return oltsAuthorizationAction(token, incidentId, 'start', payload);
+  return oltsAuthorizationAction(token, eventId, 'start', payload);
 }
 
 export function returnOltsIncidentForCorrection(
   token: string,
-  incidentId: string,
+  eventId: string,
   payload: WorkflowReasonPayload
 ): Promise<ApiResponse<OltsIncident>> {
-  return oltsAuthorizationAction(token, incidentId, 'return', payload);
+  return oltsAuthorizationAction(token, eventId, 'return', payload);
 }
 
 export function rejectOltsIncident(
   token: string,
-  incidentId: string,
+  eventId: string,
   payload: WorkflowReasonPayload
 ): Promise<ApiResponse<OltsIncident>> {
-  return oltsAuthorizationAction(token, incidentId, 'reject', payload);
+  return oltsAuthorizationAction(token, eventId, 'reject', payload);
 }
 
 export function approveOltsIncident(
   token: string,
-  incidentId: string,
+  eventId: string,
   payload: WorkflowReasonPayload
 ): Promise<ApiResponse<OltsIncident>> {
-  return oltsAuthorizationAction(token, incidentId, 'approve', payload);
+  return oltsAuthorizationAction(token, eventId, 'approve', payload);
 }

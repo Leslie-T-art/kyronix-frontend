@@ -19,6 +19,9 @@ export type EngineKey =
 'validationResults' |
 'controls' |
 'currencies' |
+'kriCategories' |
+'treatmentStrategies' |
+'unitsOfMeasure' |
 'olts' |
 'audit' |
 'kri' |
@@ -66,44 +69,88 @@ export interface OltsException {
 
 export interface OltsIncident {
   id: string;
-  incidentId: string;
-  departmentId: string;
-  departmentName?: string | null;
-  branchId: string;
-  branchName?: string | null;
+  eventId: string;
+  eventTitle: string;
+  eventStatusId: number;
   incidentDate: string;
-  discoveryDate: string;
-  severity: string;
+  incidentEndDate: string;
+  detectionDate: string;
+  departmentId: string | number;
+  departmentName?: string | null;
+  branchId: string | number;
+  branchName?: string | null;
+  processName: string;
+  productService: string;
+  baselEventCategoryId: number;
+  eventDescription: string;
+  immediateActionTaken: string;
+  rootCauseCategoryId: number;
+  rootCauseDescription: string;
+  controlId: number;
+  failedMissingControl: boolean;
+  currencyId: number;
+  grossLoss: number;
+  restitutionRemediationCost: number;
+  recoveryMethodId: number;
+  netLoss: number;
+  accountingGlReference: string;
+  dataSourceId: number;
+  nonFinancialImpactType: string;
+  nonFinancialImpactDetails: string;
+  overallEventSeverity: string;
+  correctiveAction: string;
+  actionOwner: string;
+  actionTargetDate: string;
+  actionStatusId: number;
+  preventiveControlImplemented: boolean;
+  validationEvidence: string;
+  closureValidationDate: string;
+  closureComment: string;
   authorizationStatus: string;
   status: string;
-  grossLoss: number;
-  recoveries: number;
-  netLoss: number;
-  potentialLoss: number;
-  inputterUserId: string;
-  responsiblePersonId: string;
-  responsiblePersonName: string;
+  eventOwner: string;
+  reportedBy: string;
   createdAt: string;
   createdBy: string;
-  lossCategory?: string;
-  eventType?: string;
-  description?: string;
-  currencyCode?: string;
+  lastUpdatedBy: string;
+  lastUpdatedAt: string;
+  recordVersion: number;
 }
 
 export interface OltsIncidentPayload {
+  eventTitle: string;
+  eventStatusId: number;
   incidentDate: string;
-  discoveryDate: string;
-  branchId: string;
-  departmentId: string;
-  lossCategory: string;
-  eventType: string;
-  severity: string;
-  description: string;
-  currencyCode: string;
+  incidentEndDate: string;
+  detectionDate: string;
+  branchId: number;
+  departmentId: number;
+  processName: string;
+  productService: string;
+  baselEventCategoryId: number;
+  eventDescription: string;
+  immediateActionTaken: string;
+  rootCauseCategoryId: number;
+  rootCauseDescription: string;
+  controlId: number;
+  failedMissingControl: boolean;
+  currencyId: number;
   grossLoss: number;
-  recoveries: number;
-  potentialLoss: number;
+  restitutionRemediationCost: number;
+  recoveryMethodId: number;
+  accountingGlReference: string;
+  dataSourceId: number;
+  nonFinancialImpactType: string;
+  nonFinancialImpactDetails: string;
+  overallEventSeverity: string;
+  correctiveAction: string;
+  actionOwner: string;
+  actionTargetDate: string;
+  actionStatusId: number;
+  preventiveControlImplemented: boolean;
+  validationEvidence: string;
+  closureValidationDate: string;
+  closureComment: string;
 }
 
 export interface Department {
@@ -190,6 +237,23 @@ export interface RoleConfigPayload {
   name: string;
   description: string;
   active: boolean;
+}
+
+export interface TreatmentStrategy {
+  id: string | number;
+  code: string;
+  name: string;
+  status: string;
+  createdAt?: string;
+  createdBy?: string | number;
+  updatedAt?: string;
+  updatedBy?: string | number;
+}
+
+export interface TreatmentStrategyPayload {
+  code: string;
+  name: string;
+  status: string;
 }
 
 export interface AdminUserRecord {
@@ -355,14 +419,71 @@ export interface ProcessFlow {
 }
 
 export interface SelfAssessment {
-  id: string;
-  name: string;
-  unit: string;
-  period: string;
-  completion: number;
-  dueDate: string;
-  assessor: string;
-  status: 'Not Started' | 'In Progress' | 'Submitted' | 'Overdue';
+  id: string | number;
+  rcsaId: string;
+  assessmentPeriod: string;
+  departmentId: string | number;
+  processName: string;
+  riskRegisterRisk: string;
+  riskScenario: string;
+  cause: string;
+  consequenceImpact: string;
+  inherentImpact: number;
+  inherentLikelihood: number;
+  inherentRiskScore: number;
+  inherentRiskRating: string;
+  linkedControls: string[];
+  controlDesignEffectiveness: string;
+  controlOperatingEffectiveness: string;
+  overallControlEffectiveness: string;
+  residualImpact: number;
+  residualLikelihood: number;
+  residualRiskScore: number;
+  residualRiskRating: string;
+  riskResponse: string;
+  actionRequired: boolean;
+  linkedAction: string;
+  linkedKris: string[];
+  linkedOltsEvents: string[];
+  linkedIssuesFindings: string[];
+  businessReviewStatus: string;
+  riskReviewVerification: string;
+  riskReviewComment: string;
+  dateOfLastReview: string;
+  nextReviewDate: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface SelfAssessmentPayload {
+  assessmentPeriod: string;
+  departmentId: number;
+  processName: string;
+  riskRegisterRisk: string;
+  riskScenario: string;
+  cause: string;
+  consequenceImpact: string;
+  inherentImpact: number;
+  inherentLikelihood: number;
+  linkedControls: string[];
+  controlDesignEffectiveness: string;
+  controlOperatingEffectiveness: string;
+  overallControlEffectiveness: string;
+  residualImpact: number;
+  residualLikelihood: number;
+  riskResponse: string;
+  actionRequired: boolean;
+  linkedAction: string;
+  linkedKris: string[];
+  linkedOltsEvents: string[];
+  linkedIssuesFindings: string[];
+  businessReviewStatus: string;
+  riskReviewVerification: string;
+  riskReviewComment: string;
+  dateOfLastReview: string;
+  nextReviewDate: string;
 }
 
 export interface AuditEvent {

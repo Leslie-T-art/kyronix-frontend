@@ -59,7 +59,16 @@ export const SYSTEM_CONFIGURATION_ITEMS: NavItem[] = [
   { type: 'item', key: 'dataSources', label: 'Data Source', to: '/system-configurations/data-sources', icon: DatabaseIcon },
   { type: 'item', key: 'validationResults', label: 'Validation Result', to: '/system-configurations/validation-results', icon: ShieldAlertIcon },
   { type: 'item', key: 'controls', label: 'Controls', to: '/system-configurations/controls', icon: ClipboardCheckIcon },
-  { type: 'item', key: 'currencies', label: 'Currency', to: '/system-configurations/currencies', icon: CoinsIcon }
+  { type: 'item', key: 'currencies', label: 'Currency', to: '/system-configurations/currencies', icon: CoinsIcon },
+  { type: 'item', key: 'kriCategories', label: 'KRI Categories', to: '/system-configurations/kri-categories', icon: TagsIcon },
+  {
+    type: 'item',
+    key: 'treatmentStrategies',
+    label: 'Treatment strategies',
+    to: '/system-configurations/treatment-strategies',
+    icon: ShieldCheckIcon
+  },
+  { type: 'item', key: 'unitsOfMeasure', label: 'Units of Measure', to: '/system-configurations/units-of-measure', icon: ListChecksIcon }
 ];
 
 export const NAV_ITEMS: NavigationEntry[] = [

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  DownloadIcon,
   EyeIcon,
   Loader2Icon,
   PencilIcon,
@@ -12,8 +13,7 @@ import {
   XCircleIcon
 } from 'lucide-react';
 import { OltsIncidentForm } from '../components/forms/OltsIncidentForm';
-import { AlertBanner } from '../components/shared/AlertBanner';
-import { DataTable, type Column } from '../components/shared/DataTable';
+import { DataTable, type Column, type ExportColumn } from '../components/shared/DataTable';
 import { DetailDrawer, DetailRow } from '../components/shared/DetailDrawer';
 import { EmptyState, ErrorState, LoadingState } from '../components/shared/States';
 import { PageBanner } from '../components/shared/PageBanner';
@@ -32,8 +32,7 @@ import {
   getOltsIncident,
   listBranches,
   listDepartments,
-  listEventTypes,
-  listLossCategories,
+  listOltsConfigurationItems,
   listOltsIncidents,
   rejectOltsIncident,
   returnOltsIncidentForCorrection,
@@ -44,7 +43,7 @@ import {
 } from '../lib/api/client';
 import type { ApiError } from '../lib/api/errors';
 import { formatCurrency, formatDate, formatDateTime } from '../utils/cn';
-import type { Branch, Department, EventType, LossCategory, OltsIncident, OltsIncidentPayload } from '../types';
+import type { Branch, Department, OltsConfigurationItem, OltsIncident, OltsIncidentPayload } from '../types';
 
 type WorkflowActionKey =
   | 'submit'
@@ -61,6 +60,84 @@ interface ActionConfig {
   tone?: 'danger' | 'default';
   needsReason?: boolean;
   description: string;
+}
+
+const OLTS_EXPORT_COLUMNS: ExportColumn<OltsIncident>[] = [
+  { key: 'id', header: 'id', value: (row) => row.id },
+  { key: 'eventId', header: 'eventId', value: (row) => row.eventId },
+  { key: 'eventTitle', header: 'eventTitle', value: (row) => row.eventTitle },
+  { key: 'eventStatusId', header: 'eventStatusId', value: (row) => row.eventStatusId },
+  { key: 'incidentDate', header: 'incidentDate', value: (row) => row.incidentDate },
+  { key: 'incidentEndDate', header: 'incidentEndDate', value: (row) => row.incidentEndDate },
+  { key: 'detectionDate', header: 'detectionDate', value: (row) => row.detectionDate },
+  { key: 'departmentId', header: 'departmentId', value: (row) => row.departmentId },
+  { key: 'departmentName', header: 'departmentName', value: (row) => row.departmentName },
+  { key: 'branchId', header: 'branchId', value: (row) => row.branchId },
+  { key: 'branchName', header: 'branchName', value: (row) => row.branchName },
+  { key: 'processName', header: 'processName', value: (row) => row.processName },
+  { key: 'productService', header: 'productService', value: (row) => row.productService },
+  { key: 'baselEventCategoryId', header: 'baselEventCategoryId', value: (row) => row.baselEventCategoryId },
+  { key: 'eventDescription', header: 'eventDescription', value: (row) => row.eventDescription },
+  { key: 'immediateActionTaken', header: 'immediateActionTaken', value: (row) => row.immediateActionTaken },
+  { key: 'rootCauseCategoryId', header: 'rootCauseCategoryId', value: (row) => row.rootCauseCategoryId },
+  { key: 'rootCauseDescription', header: 'rootCauseDescription', value: (row) => row.rootCauseDescription },
+  { key: 'controlId', header: 'controlId', value: (row) => row.controlId },
+  { key: 'failedMissingControl', header: 'failedMissingControl', value: (row) => row.failedMissingControl },
+  { key: 'currencyId', header: 'currencyId', value: (row) => row.currencyId },
+  { key: 'grossLoss', header: 'grossLoss', value: (row) => row.grossLoss },
+  {
+    key: 'restitutionRemediationCost',
+    header: 'restitutionRemediationCost',
+    value: (row) => row.restitutionRemediationCost
+  },
+  { key: 'recoveryMethodId', header: 'recoveryMethodId', value: (row) => row.recoveryMethodId },
+  { key: 'netLoss', header: 'netLoss', value: (row) => row.netLoss },
+  { key: 'accountingGlReference', header: 'accountingGlReference', value: (row) => row.accountingGlReference },
+  { key: 'dataSourceId', header: 'dataSourceId', value: (row) => row.dataSourceId },
+  { key: 'nonFinancialImpactType', header: 'nonFinancialImpactType', value: (row) => row.nonFinancialImpactType },
+  { key: 'nonFinancialImpactDetails', header: 'nonFinancialImpactDetails', value: (row) => row.nonFinancialImpactDetails },
+  { key: 'overallEventSeverity', header: 'overallEventSeverity', value: (row) => row.overallEventSeverity },
+  { key: 'correctiveAction', header: 'correctiveAction', value: (row) => row.correctiveAction },
+  { key: 'actionOwner', header: 'actionOwner', value: (row) => row.actionOwner },
+  { key: 'actionTargetDate', header: 'actionTargetDate', value: (row) => row.actionTargetDate },
+  { key: 'actionStatusId', header: 'actionStatusId', value: (row) => row.actionStatusId },
+  {
+    key: 'preventiveControlImplemented',
+    header: 'preventiveControlImplemented',
+    value: (row) => row.preventiveControlImplemented
+  },
+  { key: 'validationEvidence', header: 'validationEvidence', value: (row) => row.validationEvidence },
+  { key: 'closureValidationDate', header: 'closureValidationDate', value: (row) => row.closureValidationDate },
+  { key: 'closureComment', header: 'closureComment', value: (row) => row.closureComment },
+  { key: 'authorizationStatus', header: 'authorizationStatus', value: (row) => row.authorizationStatus },
+  { key: 'status', header: 'status', value: (row) => row.status },
+  { key: 'eventOwner', header: 'eventOwner', value: (row) => row.eventOwner },
+  { key: 'reportedBy', header: 'reportedBy', value: (row) => row.reportedBy },
+  { key: 'createdAt', header: 'createdAt', value: (row) => row.createdAt },
+  { key: 'createdBy', header: 'createdBy', value: (row) => row.createdBy },
+  { key: 'lastUpdatedBy', header: 'lastUpdatedBy', value: (row) => row.lastUpdatedBy },
+  { key: 'lastUpdatedAt', header: 'lastUpdatedAt', value: (row) => row.lastUpdatedAt },
+  { key: 'recordVersion', header: 'recordVersion', value: (row) => row.recordVersion }
+];
+
+function downloadOltsIncidentCsv(rows: OltsIncident[], filename: string) {
+  const header = OLTS_EXPORT_COLUMNS.map((column) => column.header).join(',');
+  const body = rows
+    .map((row) =>
+      OLTS_EXPORT_COLUMNS.map((column) => `"${String(column.value(row) ?? '').replace(/"/g, '""')}"`).join(',')
+    )
+    .join('\n');
+  const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function formatBoolean(value: boolean) {
+  return value ? 'true' : 'false';
 }
 
 const ACTIONS: ActionConfig[] = [
@@ -144,7 +221,7 @@ function ActionPrompt({
   useEffect(() => {
     if (!open) return;
     setReason('');
-  }, [open, action?.key, incident?.id]);
+  }, [open, action?.key, incident?.eventId]);
 
   if (!open || !action || !incident) return null;
 
@@ -152,7 +229,7 @@ function ActionPrompt({
     <DetailDrawer
       open={open}
       title={action.label}
-      subtitle={incident.incidentId}
+      subtitle={incident.eventId}
       onClose={onClose}
       width="md"
       footer={
@@ -203,8 +280,14 @@ export function Olts() {
   const [rows, setRows] = useState<OltsIncident[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [lossCategories, setLossCategories] = useState<LossCategory[]>([]);
-  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
+  const [eventStatuses, setEventStatuses] = useState<OltsConfigurationItem[]>([]);
+  const [baselEventCategories, setBaselEventCategories] = useState<OltsConfigurationItem[]>([]);
+  const [rootCauses, setRootCauses] = useState<OltsConfigurationItem[]>([]);
+  const [controls, setControls] = useState<OltsConfigurationItem[]>([]);
+  const [currencies, setCurrencies] = useState<OltsConfigurationItem[]>([]);
+  const [recoveryMethods, setRecoveryMethods] = useState<OltsConfigurationItem[]>([]);
+  const [dataSources, setDataSources] = useState<OltsConfigurationItem[]>([]);
+  const [actionStatuses, setActionStatuses] = useState<OltsConfigurationItem[]>([]);
   const [error, setError] = useState<ApiError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -224,8 +307,8 @@ export function Olts() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const canSeeActions = user ? canManageOltsActions(user.backendRoles) : false;
-  const hasAdminOltsParity = user ? canManageOltsActions(user.backendRoles) : false;
   const isDepartmentScoped = user ? shouldRestrictOltsToDepartment(user.backendRoles) : false;
+  const canApprove = Boolean(user?.backendRoles.includes('HEAD') || user?.backendRoles.includes('DEPARTMENT_HEAD'));
 
   function handleApiError(nextError: ApiError | null) {
     if (nextError?.code === 'UNAUTHORIZED') {
@@ -250,18 +333,41 @@ export function Olts() {
 
   const loadReferenceData = useCallback(async () => {
     if (!accessToken) return;
-    const [branchesResponse, departmentsResponse, lossCategoriesResponse, eventTypesResponse] = await Promise.all([
+    const [
+      branchesResponse,
+      departmentsResponse,
+      eventStatusesResponse,
+      baselEventCategoriesResponse,
+      rootCausesResponse,
+      controlsResponse,
+      currenciesResponse,
+      recoveryMethodsResponse,
+      dataSourcesResponse,
+      actionStatusesResponse
+    ] = await Promise.all([
       listBranches(accessToken),
       listDepartments(accessToken),
-      listLossCategories(accessToken),
-      listEventTypes(accessToken)
+      listOltsConfigurationItems(accessToken, 'event-statuses'),
+      listOltsConfigurationItems(accessToken, 'basel-event-categories'),
+      listOltsConfigurationItems(accessToken, 'root-causes'),
+      listOltsConfigurationItems(accessToken, 'controls'),
+      listOltsConfigurationItems(accessToken, 'currencies'),
+      listOltsConfigurationItems(accessToken, 'recovery-methods'),
+      listOltsConfigurationItems(accessToken, 'data-sources'),
+      listOltsConfigurationItems(accessToken, 'action-statuses')
     ]);
 
     if (
       branchesResponse.error?.code === 'UNAUTHORIZED' ||
       departmentsResponse.error?.code === 'UNAUTHORIZED' ||
-      lossCategoriesResponse.error?.code === 'UNAUTHORIZED' ||
-      eventTypesResponse.error?.code === 'UNAUTHORIZED'
+      eventStatusesResponse.error?.code === 'UNAUTHORIZED' ||
+      baselEventCategoriesResponse.error?.code === 'UNAUTHORIZED' ||
+      rootCausesResponse.error?.code === 'UNAUTHORIZED' ||
+      controlsResponse.error?.code === 'UNAUTHORIZED' ||
+      currenciesResponse.error?.code === 'UNAUTHORIZED' ||
+      recoveryMethodsResponse.error?.code === 'UNAUTHORIZED' ||
+      dataSourcesResponse.error?.code === 'UNAUTHORIZED' ||
+      actionStatusesResponse.error?.code === 'UNAUTHORIZED'
     ) {
       signOut();
       return;
@@ -269,8 +375,14 @@ export function Olts() {
 
     if (branchesResponse.data) setBranches(branchesResponse.data);
     if (departmentsResponse.data) setDepartments(departmentsResponse.data);
-    if (lossCategoriesResponse.data) setLossCategories(lossCategoriesResponse.data);
-    if (eventTypesResponse.data) setEventTypes(eventTypesResponse.data.filter((eventType) => eventType.active));
+    if (eventStatusesResponse.data) setEventStatuses(eventStatusesResponse.data);
+    if (baselEventCategoriesResponse.data) setBaselEventCategories(baselEventCategoriesResponse.data);
+    if (rootCausesResponse.data) setRootCauses(rootCausesResponse.data);
+    if (controlsResponse.data) setControls(controlsResponse.data);
+    if (currenciesResponse.data) setCurrencies(currenciesResponse.data);
+    if (recoveryMethodsResponse.data) setRecoveryMethods(recoveryMethodsResponse.data);
+    if (dataSourcesResponse.data) setDataSources(dataSourcesResponse.data);
+    if (actionStatusesResponse.data) setActionStatuses(actionStatusesResponse.data);
   }, [accessToken, signOut]);
 
   useEffect(() => {
@@ -278,13 +390,13 @@ export function Olts() {
     void loadReferenceData();
   }, [loadIncidents, loadReferenceData]);
 
-  async function loadIncidentDetail(incidentId: string, openDrawer = true): Promise<OltsIncident | null> {
+  async function loadIncidentDetail(eventId: string, openDrawer = true): Promise<OltsIncident | null> {
     if (!accessToken) return null;
     setDetailBusy(true);
     setDetailError(null);
     if (openDrawer) setDetailOpen(true);
 
-    const response = await getOltsIncident(accessToken, incidentId);
+    const response = await getOltsIncident(accessToken, eventId);
     setDetailBusy(false);
     if (response.error || !response.data) {
       if (response.error?.code === 'UNAUTHORIZED') {
@@ -316,7 +428,7 @@ export function Olts() {
     }
 
     setFormOpen(false);
-    setSavedMessage(`Incident ${response.data.incidentId} created successfully.`);
+    setSavedMessage(`Incident ${response.data.eventId} created successfully.`);
     await loadIncidents();
   }
 
@@ -324,7 +436,7 @@ export function Olts() {
     if (!accessToken || !formIncident) return;
     setFormBusy(true);
     setFormError(null);
-    const response = await updateOltsIncident(accessToken, formIncident.incidentId, payload);
+    const response = await updateOltsIncident(accessToken, formIncident.eventId, payload);
     setFormBusy(false);
 
     if (response.error || !response.data) {
@@ -337,15 +449,15 @@ export function Olts() {
     }
 
     setFormOpen(false);
-    setSavedMessage(`Incident ${response.data.incidentId} updated successfully.`);
+    setSavedMessage(`Incident ${response.data.eventId} updated successfully.`);
     await loadIncidents();
     if (detailOpen) {
-      await loadIncidentDetail(formIncident.incidentId, false);
+      await loadIncidentDetail(formIncident.eventId, false);
     }
   }
 
   async function beginEdit(incident: OltsIncident) {
-    const detail = await loadIncidentDetail(incident.incidentId, false);
+    const detail = await loadIncidentDetail(incident.eventId, false);
     setFormIncident(detail ?? incident);
     setFormMode('edit');
     setFormError(null);
@@ -367,9 +479,9 @@ export function Olts() {
 
     let response;
     if (actionConfig.key === 'delete') {
-      response = await deleteOltsIncident(accessToken, actionIncident.incidentId);
+      response = await deleteOltsIncident(accessToken, actionIncident.eventId);
     } else {
-      response = await requester[actionConfig.key](accessToken, actionIncident.incidentId, payload);
+      response = await requester[actionConfig.key](accessToken, actionIncident.eventId, payload);
     }
 
     setActionBusy(false);
@@ -387,20 +499,20 @@ export function Olts() {
     setActionConfig(null);
     setActionIncident(null);
     setOpenMenuId(null);
-    setSavedMessage(`${actionConfig.label} completed for ${actionIncident.incidentId}.`);
+    setSavedMessage(`${actionConfig.label} completed for ${actionIncident.eventId}.`);
     await loadIncidents();
     if (detailOpen) {
-      await loadIncidentDetail(actionIncident.incidentId, false);
+      await loadIncidentDetail(actionIncident.eventId, false);
     }
   }
 
   const columns = useMemo(() => {
     const base: Column<OltsIncident>[] = [
       {
-        key: 'incidentId',
+        key: 'eventId',
         header: 'Incident',
-        value: (row) => row.incidentId,
-        render: (row) => <span className="font-medium text-navy">{row.incidentId}</span>
+        value: (row) => row.eventId,
+        render: (row) => <span className="font-medium text-navy">{row.eventId}</span>
       },
       {
         key: 'branchId',
@@ -415,11 +527,11 @@ export function Olts() {
         render: (row) => <span className="block max-w-[180px] truncate">{row.departmentName ?? row.departmentId}</span>
       },
       {
-        key: 'severity',
+        key: 'overallEventSeverity',
         header: 'Severity',
         filterable: true,
-        value: (row) => row.severity,
-        render: (row) => <StatusBadge status={row.severity} />
+        value: (row) => row.overallEventSeverity,
+        render: (row) => <StatusBadge status={row.overallEventSeverity} />
       },
       {
         key: 'status',
@@ -440,7 +552,7 @@ export function Olts() {
         header: 'Gross loss',
         align: 'right',
         value: (row) => row.grossLoss,
-        render: (row) => formatCurrency(row.grossLoss, row.currencyCode ?? 'USD')
+        render: (row) => formatCurrency(row.grossLoss)
       },
       {
         key: 'incidentDate',
@@ -449,9 +561,9 @@ export function Olts() {
         render: (row) => formatDate(row.incidentDate)
       },
       {
-        key: 'responsiblePersonName',
-        header: 'Responsible',
-        value: (row) => row.responsiblePersonName
+        key: 'actionOwner',
+        header: 'Action owner',
+        value: (row) => row.actionOwner
       }
     ];
 
@@ -468,14 +580,14 @@ export function Olts() {
           <RowActionsMenu
             open={openMenuId === row.id}
             onToggle={() => setOpenMenuId((current) => (current === row.id ? null : row.id))}
-            ariaLabel={`Actions for ${row.incidentId}`}
+            ariaLabel={`Actions for ${row.eventId}`}
             actions={[
               {
                 key: 'view',
                 label: 'View incident',
                 icon: EyeIcon,
                 onClick: () => {
-                  void loadIncidentDetail(row.incidentId);
+                  void loadIncidentDetail(row.eventId);
                   setOpenMenuId(null);
                 }
               },
@@ -488,7 +600,7 @@ export function Olts() {
                   setOpenMenuId(null);
                 }
               },
-              ...ACTIONS.map<RowActionItem>((action) => ({
+              ...ACTIONS.filter((action) => action.key !== 'approve' || canApprove).map<RowActionItem>((action) => ({
                 key: action.key,
                 label: action.label,
                 icon: action.icon,
@@ -504,7 +616,7 @@ export function Olts() {
         )
       }
     ];
-  }, [canSeeActions, openMenuId]);
+  }, [canApprove, canSeeActions, openMenuId]);
 
   const visibleRows = useMemo(() => {
     if (!user) return rows;
@@ -567,9 +679,10 @@ export function Olts() {
           isLoading={isLoading}
           error={error}
           onRetry={() => void loadIncidents()}
-          onRowClick={(row) => void loadIncidentDetail(row.incidentId)}
-          searchPlaceholder="Search incident, branch, department, responsible person"
+          onRowClick={(row) => void loadIncidentDetail(row.eventId)}
+          searchPlaceholder="Search incident, branch, department, event title"
           exportName="olts-incidents"
+          exportColumns={OLTS_EXPORT_COLUMNS}
           pageSize={10}
         />
       )}
@@ -578,17 +691,16 @@ export function Olts() {
         open={formOpen}
         mode={formMode}
         initialValues={formIncident}
-        isSystemAdmin={hasAdminOltsParity}
         branches={branches}
         departments={departments}
-        lossCategories={lossCategories}
-        eventTypes={eventTypes}
-        currentBranch={user?.branchId ? { id: user.branchId, code: user.branchCode ?? user.branchId, name: user.branchName ?? user.branchId } : null}
-        currentDepartment={
-          user?.departmentId
-            ? { id: user.departmentId, code: user.departmentCode ?? user.departmentId, name: user.departmentName ?? user.departmentId }
-            : null
-        }
+        eventStatuses={eventStatuses}
+        baselEventCategories={baselEventCategories}
+        rootCauses={rootCauses}
+        controls={controls}
+        currencies={currencies}
+        recoveryMethods={recoveryMethods}
+        dataSources={dataSources}
+        actionStatuses={actionStatuses}
         defaultBranchId={user?.branchId}
         defaultDepartmentId={user?.departmentId}
         isSubmitting={formBusy}
@@ -599,9 +711,22 @@ export function Olts() {
 
       <DetailDrawer
         open={detailOpen}
-        title={selectedIncident?.incidentId ?? 'Incident detail'}
+        title={selectedIncident?.eventId ?? 'Incident detail'}
         subtitle="Incident details"
         onClose={() => setDetailOpen(false)}
+        headerActions={
+          selectedIncident ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadOltsIncidentCsv([selectedIncident], `olts-incident-${selectedIncident.eventId}.csv`)}
+              type="button"
+            >
+              <DownloadIcon className="h-3.5 w-3.5" />
+              Export
+            </Button>
+          ) : null
+        }
         width="lg"
       >
         {detailBusy && <LoadingState rows={4} />}
@@ -610,7 +735,7 @@ export function Olts() {
             title="Unable to load incident"
             description={detailError.message}
             correlationId={detailError.correlationId}
-            onRetry={() => selectedIncident && void loadIncidentDetail(selectedIncident.id)}
+            onRetry={() => selectedIncident && void loadIncidentDetail(selectedIncident.eventId)}
           />
         )}
         {!detailBusy && !detailError && !selectedIncident && (
@@ -618,13 +743,29 @@ export function Olts() {
         )}
         {!detailBusy && !detailError && selectedIncident && (
           <dl>
-            <DetailRow label="Incident ID">{selectedIncident.incidentId}</DetailRow>
+            <DetailRow label="ID">{selectedIncident.id}</DetailRow>
+            <DetailRow label="Incident ID">{selectedIncident.eventId}</DetailRow>
+            <DetailRow label="Event title">{selectedIncident.eventTitle}</DetailRow>
+            <DetailRow label="Event status ID">{selectedIncident.eventStatusId}</DetailRow>
             <DetailRow label="Incident date">{formatDate(selectedIncident.incidentDate)}</DetailRow>
-            <DetailRow label="Discovery date">{formatDate(selectedIncident.discoveryDate)}</DetailRow>
+            <DetailRow label="Incident end date">{formatDate(selectedIncident.incidentEndDate)}</DetailRow>
+            <DetailRow label="Detection date">{formatDate(selectedIncident.detectionDate)}</DetailRow>
+            <DetailRow label="Department ID">{selectedIncident.departmentId}</DetailRow>
             <DetailRow label="Branch">{selectedIncident.branchName ?? selectedIncident.branchId}</DetailRow>
+            <DetailRow label="Branch ID">{selectedIncident.branchId}</DetailRow>
             <DetailRow label="Department">{selectedIncident.departmentName ?? selectedIncident.departmentId}</DetailRow>
+            <DetailRow label="Process name">{selectedIncident.processName}</DetailRow>
+            <DetailRow label="Product / service">{selectedIncident.productService}</DetailRow>
+            <DetailRow label="Basel event category ID">{selectedIncident.baselEventCategoryId}</DetailRow>
+            <DetailRow label="Event description">{selectedIncident.eventDescription}</DetailRow>
+            <DetailRow label="Immediate action taken">{selectedIncident.immediateActionTaken}</DetailRow>
+            <DetailRow label="Root cause category ID">{selectedIncident.rootCauseCategoryId}</DetailRow>
+            <DetailRow label="Root cause description">{selectedIncident.rootCauseDescription}</DetailRow>
+            <DetailRow label="Control ID">{selectedIncident.controlId}</DetailRow>
+            <DetailRow label="Failed / missing control">{formatBoolean(selectedIncident.failedMissingControl)}</DetailRow>
+            <DetailRow label="Currency ID">{selectedIncident.currencyId}</DetailRow>
             <DetailRow label="Severity">
-              <StatusBadge status={selectedIncident.severity} />
+              <StatusBadge status={selectedIncident.overallEventSeverity} />
             </DetailRow>
             <DetailRow label="Status">
               <StatusBadge status={selectedIncident.status} />
@@ -632,14 +773,28 @@ export function Olts() {
             <DetailRow label="Authorization">
               <StatusBadge status={selectedIncident.authorizationStatus} />
             </DetailRow>
-            <DetailRow label="Gross loss">{formatCurrency(selectedIncident.grossLoss, selectedIncident.currencyCode ?? 'USD')}</DetailRow>
-            <DetailRow label="Recoveries">{formatCurrency(selectedIncident.recoveries, selectedIncident.currencyCode ?? 'USD')}</DetailRow>
-            <DetailRow label="Net loss">{formatCurrency(selectedIncident.netLoss, selectedIncident.currencyCode ?? 'USD')}</DetailRow>
-            <DetailRow label="Potential loss">{formatCurrency(selectedIncident.potentialLoss, selectedIncident.currencyCode ?? 'USD')}</DetailRow>
-            <DetailRow label="Responsible person">{selectedIncident.responsiblePersonName}</DetailRow>
-            <DetailRow label="Inputter user">{selectedIncident.inputterUserId}</DetailRow>
+            <DetailRow label="Gross loss">{formatCurrency(selectedIncident.grossLoss)}</DetailRow>
+            <DetailRow label="Restitution / remediation">{formatCurrency(selectedIncident.restitutionRemediationCost)}</DetailRow>
+            <DetailRow label="Recovery method ID">{selectedIncident.recoveryMethodId}</DetailRow>
+            <DetailRow label="Net loss">{formatCurrency(selectedIncident.netLoss)}</DetailRow>
+            <DetailRow label="Accounting GL reference">{selectedIncident.accountingGlReference}</DetailRow>
+            <DetailRow label="Data source ID">{selectedIncident.dataSourceId}</DetailRow>
+            <DetailRow label="Non-financial impact type">{selectedIncident.nonFinancialImpactType}</DetailRow>
+            <DetailRow label="Non-financial impact details">{selectedIncident.nonFinancialImpactDetails}</DetailRow>
+            <DetailRow label="Action status ID">{selectedIncident.actionStatusId}</DetailRow>
+            <DetailRow label="Action owner">{selectedIncident.actionOwner}</DetailRow>
+            <DetailRow label="Action target date">{formatDate(selectedIncident.actionTargetDate)}</DetailRow>
+            <DetailRow label="Preventive control implemented">{formatBoolean(selectedIncident.preventiveControlImplemented)}</DetailRow>
+            <DetailRow label="Validation evidence">{selectedIncident.validationEvidence}</DetailRow>
+            <DetailRow label="Closure validation date">{formatDate(selectedIncident.closureValidationDate)}</DetailRow>
+            <DetailRow label="Closure comment">{selectedIncident.closureComment}</DetailRow>
+            <DetailRow label="Reported by">{selectedIncident.reportedBy}</DetailRow>
+            <DetailRow label="Event owner">{selectedIncident.eventOwner}</DetailRow>
             <DetailRow label="Created by">{selectedIncident.createdBy}</DetailRow>
             <DetailRow label="Created at">{formatDateTime(selectedIncident.createdAt)}</DetailRow>
+            <DetailRow label="Last updated by">{selectedIncident.lastUpdatedBy}</DetailRow>
+            <DetailRow label="Last updated at">{formatDateTime(selectedIncident.lastUpdatedAt)}</DetailRow>
+            <DetailRow label="Record version">{selectedIncident.recordVersion}</DetailRow>
           </dl>
         )}
       </DetailDrawer>

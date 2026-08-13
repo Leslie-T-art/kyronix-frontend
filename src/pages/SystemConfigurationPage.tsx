@@ -39,7 +39,9 @@ const DEFINITIONS: Record<
   | 'dataSources'
   | 'validationResults'
   | 'controls'
-  | 'currencies',
+  | 'currencies'
+  | 'kriCategories'
+  | 'unitsOfMeasure',
   SystemConfigurationDefinition
 > = {
   eventStatuses: {
@@ -101,6 +103,18 @@ const DEFINITIONS: Record<
     resource: 'currencies',
     title: 'Currency',
     singular: 'currency'
+  },
+  kriCategories: {
+    key: 'kriCategories',
+    resource: 'kri-categories',
+    title: 'KRI Category',
+    singular: 'KRI category'
+  },
+  unitsOfMeasure: {
+    key: 'unitsOfMeasure',
+    resource: 'units-of-measure',
+    title: 'Unit of Measure',
+    singular: 'unit of measure'
   }
 };
 
@@ -472,4 +486,12 @@ export function Controls() {
 
 export function Currencies() {
   return <SystemConfigurationPage definition={DEFINITIONS.currencies} />;
+}
+
+export function KriCategories() {
+  return <SystemConfigurationPage definition={DEFINITIONS.kriCategories} />;
+}
+
+export function UnitsOfMeasure() {
+  return <SystemConfigurationPage definition={DEFINITIONS.unitsOfMeasure} />;
 }

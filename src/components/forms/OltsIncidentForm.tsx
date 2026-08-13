@@ -1,9 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Loader2Icon } from 'lucide-react';
 import { FormDrawer } from '../shared/FormDrawer';
-import { Field, FormSection, ReadOnlyValue, SelectInput, TextArea, TextInput } from '../ui/Field';
-import { formatCurrency } from '../../utils/cn';
-import type { Branch, Department, EventType, LossCategory, OltsIncident, OltsIncidentPayload } from '../../types';
+import { Field, FormSection, SelectInput, TextArea, TextInput, ToggleField } from '../ui/Field';
+import type {
+  Branch,
+  Department,
+  OltsConfigurationItem,
+  OltsIncident,
+  OltsIncidentPayload
+} from '../../types';
 
 const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
@@ -11,13 +16,16 @@ interface OltsIncidentFormProps {
   open: boolean;
   mode: 'create' | 'edit';
   initialValues?: OltsIncident | null;
-  isSystemAdmin: boolean;
   branches: Branch[];
   departments: Department[];
-  lossCategories: LossCategory[];
-  eventTypes: EventType[];
-  currentBranch?: Pick<Branch, 'id' | 'code' | 'name'> | null;
-  currentDepartment?: Pick<Department, 'id' | 'code' | 'name'> | null;
+  eventStatuses: OltsConfigurationItem[];
+  baselEventCategories: OltsConfigurationItem[];
+  rootCauses: OltsConfigurationItem[];
+  controls: OltsConfigurationItem[];
+  currencies: OltsConfigurationItem[];
+  recoveryMethods: OltsConfigurationItem[];
+  dataSources: OltsConfigurationItem[];
+  actionStatuses: OltsConfigurationItem[];
   defaultBranchId?: string;
   defaultDepartmentId?: string;
   isSubmitting?: boolean;
@@ -27,55 +35,106 @@ interface OltsIncidentFormProps {
 }
 
 interface FormState {
+  eventTitle: string;
+  eventStatusId: string;
   incidentDate: string;
-  discoveryDate: string;
+  incidentEndDate: string;
+  detectionDate: string;
   branchId: string;
   departmentId: string;
-  lossCategory: string;
-  eventType: string;
-  severity: string;
-  description: string;
-  currencyCode: string;
+  processName: string;
+  productService: string;
+  baselEventCategoryId: string;
+  eventDescription: string;
+  immediateActionTaken: string;
+  rootCauseCategoryId: string;
+  rootCauseDescription: string;
+  controlId: string;
+  failedMissingControl: boolean;
+  currencyId: string;
   grossLoss: string;
-  recoveries: string;
-  potentialLoss: string;
+  restitutionRemediationCost: string;
+  recoveryMethodId: string;
+  accountingGlReference: string;
+  dataSourceId: string;
+  nonFinancialImpactType: string;
+  nonFinancialImpactDetails: string;
+  overallEventSeverity: string;
+  correctiveAction: string;
+  actionOwner: string;
+  actionTargetDate: string;
+  actionStatusId: string;
+  preventiveControlImplemented: boolean;
+  validationEvidence: string;
+  closureValidationDate: string;
+  closureComment: string;
 }
 
 function toFormState(
   incident?: OltsIncident | null,
   defaultBranchId?: string,
-  defaultDepartmentId?: string,
-  defaultLossCategory?: string,
-  defaultEventType?: string
+  defaultDepartmentId?: string
 ): FormState {
   const today = new Date().toISOString().slice(0, 10);
   return {
+    eventTitle: incident?.eventTitle ?? '',
+    eventStatusId: incident?.eventStatusId ? String(incident.eventStatusId) : '',
     incidentDate: incident?.incidentDate ?? today,
-    discoveryDate: incident?.discoveryDate ?? today,
-    branchId: incident?.branchId ?? defaultBranchId ?? '',
-    departmentId: incident?.departmentId ?? defaultDepartmentId ?? '',
-    lossCategory: incident?.lossCategory ?? defaultLossCategory ?? '',
-    eventType: incident?.eventType ?? defaultEventType ?? '',
-    severity: incident?.severity ?? SEVERITIES[0],
-    description: incident?.description ?? '',
-    currencyCode: incident?.currencyCode ?? 'USD',
+    incidentEndDate: incident?.incidentEndDate ?? today,
+    detectionDate: incident?.detectionDate ?? today,
+    branchId: incident?.branchId ? String(incident.branchId) : defaultBranchId ?? '',
+    departmentId: incident?.departmentId ? String(incident.departmentId) : defaultDepartmentId ?? '',
+    processName: incident?.processName ?? '',
+    productService: incident?.productService ?? '',
+    baselEventCategoryId: incident?.baselEventCategoryId ? String(incident.baselEventCategoryId) : '',
+    eventDescription: incident?.eventDescription ?? '',
+    immediateActionTaken: incident?.immediateActionTaken ?? '',
+    rootCauseCategoryId: incident?.rootCauseCategoryId ? String(incident.rootCauseCategoryId) : '',
+    rootCauseDescription: incident?.rootCauseDescription ?? '',
+    controlId: incident?.controlId ? String(incident.controlId) : '',
+    failedMissingControl: incident?.failedMissingControl ?? false,
+    currencyId: incident?.currencyId ? String(incident.currencyId) : '',
     grossLoss: String(incident?.grossLoss ?? 0),
-    recoveries: String(incident?.recoveries ?? 0),
-    potentialLoss: String(incident?.potentialLoss ?? 0)
+    restitutionRemediationCost: String(incident?.restitutionRemediationCost ?? 0),
+    recoveryMethodId: incident?.recoveryMethodId ? String(incident.recoveryMethodId) : '',
+    accountingGlReference: incident?.accountingGlReference ?? '',
+    dataSourceId: incident?.dataSourceId ? String(incident.dataSourceId) : '',
+    nonFinancialImpactType: incident?.nonFinancialImpactType ?? '',
+    nonFinancialImpactDetails: incident?.nonFinancialImpactDetails ?? '',
+    overallEventSeverity: incident?.overallEventSeverity ?? SEVERITIES[0],
+    correctiveAction: incident?.correctiveAction ?? '',
+    actionOwner: incident?.actionOwner ?? '',
+    actionTargetDate: incident?.actionTargetDate ?? today,
+    actionStatusId: incident?.actionStatusId ? String(incident.actionStatusId) : '',
+    preventiveControlImplemented: incident?.preventiveControlImplemented ?? false,
+    validationEvidence: incident?.validationEvidence ?? '',
+    closureValidationDate: incident?.closureValidationDate ?? today,
+    closureComment: incident?.closureComment ?? ''
   };
+}
+
+function renderConfigOptions(items: OltsConfigurationItem[]) {
+  return items.map((item) => (
+    <option key={String(item.id)} value={String(item.id)}>
+      {item.code} - {item.name}
+    </option>
+  ));
 }
 
 export function OltsIncidentForm({
   open,
   mode,
   initialValues,
-  isSystemAdmin,
   branches,
   departments,
-  lossCategories,
-  eventTypes,
-  currentBranch,
-  currentDepartment,
+  eventStatuses,
+  baselEventCategories,
+  rootCauses,
+  controls,
+  currencies,
+  recoveryMethods,
+  dataSources,
+  actionStatuses,
   defaultBranchId,
   defaultDepartmentId,
   isSubmitting = false,
@@ -83,44 +142,12 @@ export function OltsIncidentForm({
   onClose,
   onSubmit
 }: OltsIncidentFormProps) {
-  const availableBranches = isSystemAdmin
-    ? branches
-    : currentBranch
-      ? [{ ...currentBranch, active: true }]
-      : [];
-  const availableDepartments = isSystemAdmin
-    ? departments
-    : currentDepartment
-      ? [{ ...currentDepartment, active: true }]
-      : [];
-
-  const [form, setForm] = useState<FormState>(() =>
-    toFormState(
-      initialValues,
-      defaultBranchId,
-      defaultDepartmentId,
-      lossCategories[0]?.code,
-      eventTypes[0]?.code
-    )
-  );
+  const [form, setForm] = useState<FormState>(() => toFormState(initialValues, defaultBranchId, defaultDepartmentId));
 
   useEffect(() => {
     if (!open) return;
-    setForm(
-      toFormState(
-        initialValues,
-        defaultBranchId,
-        defaultDepartmentId,
-        lossCategories[0]?.code,
-        eventTypes[0]?.code
-      )
-    );
-  }, [open, initialValues, defaultBranchId, defaultDepartmentId, lossCategories, eventTypes]);
-
-  const netLoss = useMemo(
-    () => Math.max(0, (Number(form.grossLoss) || 0) - (Number(form.recoveries) || 0)),
-    [form.grossLoss, form.recoveries]
-  );
+    setForm(toFormState(initialValues, defaultBranchId, defaultDepartmentId));
+  }, [open, initialValues, defaultBranchId, defaultDepartmentId]);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -129,18 +156,39 @@ export function OltsIncidentForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await onSubmit({
+      eventTitle: form.eventTitle.trim(),
+      eventStatusId: Number(form.eventStatusId) || 0,
       incidentDate: form.incidentDate,
-      discoveryDate: form.discoveryDate,
-      branchId: form.branchId,
-      departmentId: form.departmentId,
-      lossCategory: form.lossCategory,
-      eventType: form.eventType,
-      severity: form.severity,
-      description: form.description,
-      currencyCode: form.currencyCode,
+      incidentEndDate: form.incidentEndDate,
+      detectionDate: form.detectionDate,
+      branchId: Number(form.branchId) || 0,
+      departmentId: Number(form.departmentId) || 0,
+      processName: form.processName.trim(),
+      productService: form.productService.trim(),
+      baselEventCategoryId: Number(form.baselEventCategoryId) || 0,
+      eventDescription: form.eventDescription.trim(),
+      immediateActionTaken: form.immediateActionTaken.trim(),
+      rootCauseCategoryId: Number(form.rootCauseCategoryId) || 0,
+      rootCauseDescription: form.rootCauseDescription.trim(),
+      controlId: Number(form.controlId) || 0,
+      failedMissingControl: form.failedMissingControl,
+      currencyId: Number(form.currencyId) || 0,
       grossLoss: Number(form.grossLoss) || 0,
-      recoveries: Number(form.recoveries) || 0,
-      potentialLoss: Number(form.potentialLoss) || 0
+      restitutionRemediationCost: Number(form.restitutionRemediationCost) || 0,
+      recoveryMethodId: Number(form.recoveryMethodId) || 0,
+      accountingGlReference: form.accountingGlReference.trim(),
+      dataSourceId: Number(form.dataSourceId) || 0,
+      nonFinancialImpactType: form.nonFinancialImpactType.trim(),
+      nonFinancialImpactDetails: form.nonFinancialImpactDetails.trim(),
+      overallEventSeverity: form.overallEventSeverity,
+      correctiveAction: form.correctiveAction.trim(),
+      actionOwner: form.actionOwner.trim(),
+      actionTargetDate: form.actionTargetDate,
+      actionStatusId: Number(form.actionStatusId) || 0,
+      preventiveControlImplemented: form.preventiveControlImplemented,
+      validationEvidence: form.validationEvidence.trim(),
+      closureValidationDate: form.closureValidationDate,
+      closureComment: form.closureComment.trim()
     });
   }
 
@@ -148,166 +196,156 @@ export function OltsIncidentForm({
     <FormDrawer
       open={open}
       title={mode === 'create' ? 'Create OLTS incident' : 'Update OLTS incident'}
-      subtitle="OLTS API integration via centralized client"
+      subtitle="OLTS incident API integration"
       formId="olts-incident-form"
       submitLabel={isSubmitting ? 'Saving...' : mode === 'create' ? 'Create incident' : 'Update incident'}
       submitDisabled={isSubmitting}
       onClose={onClose}
       onSubmit={handleSubmit}
     >
-      <FormSection title="Core details">
-        {initialValues && (
-          <Field label="Incident Reference">
-            <ReadOnlyValue value={initialValues.incidentId} />
-          </Field>
-        )}
+      <FormSection title="Event details">
+        <Field label="Event title" htmlFor="event-title" required>
+          <TextInput id="event-title" value={form.eventTitle} onChange={(event) => updateField('eventTitle', event.target.value)} required />
+        </Field>
+        <Field label="Event status" htmlFor="event-status" required>
+          <select id="event-status" value={form.eventStatusId} onChange={(event) => updateField('eventStatusId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select event status</option>
+            {renderConfigOptions(eventStatuses)}
+          </select>
+        </Field>
+        <Field label="Overall severity" htmlFor="overall-severity" required>
+          <SelectInput id="overall-severity" options={SEVERITIES} value={form.overallEventSeverity} onChange={(event) => updateField('overallEventSeverity', event.target.value)} />
+        </Field>
         <Field label="Incident date" htmlFor="incident-date" required>
-          <TextInput
-            id="incident-date"
-            type="date"
-            value={form.incidentDate}
-            onChange={(event) => updateField('incidentDate', event.target.value)}
-            required
-          />
+          <TextInput id="incident-date" type="date" value={form.incidentDate} onChange={(event) => updateField('incidentDate', event.target.value)} required />
         </Field>
-        <Field label="Discovery date" htmlFor="discovery-date" required>
-          <TextInput
-            id="discovery-date"
-            type="date"
-            value={form.discoveryDate}
-            onChange={(event) => updateField('discoveryDate', event.target.value)}
-            required
-          />
+        <Field label="Incident end date" htmlFor="incident-end-date" required>
+          <TextInput id="incident-end-date" type="date" value={form.incidentEndDate} onChange={(event) => updateField('incidentEndDate', event.target.value)} required />
         </Field>
-        {isSystemAdmin && (
-          <Field label="Branch" htmlFor="branch-id" required>
-            <select
-              id="branch-id"
-              value={form.branchId}
-              onChange={(event) => updateField('branchId', event.target.value)}
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
-              required
-            >
-              <option value="" disabled>Select branch</option>
-              {availableBranches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.code} - {branch.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-        {isSystemAdmin && (
-          <Field label="Department" htmlFor="department-id" required>
-            <select
-              id="department-id"
-              value={form.departmentId}
-              onChange={(event) => updateField('departmentId', event.target.value)}
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
-              required
-            >
-              <option value="" disabled>Select department</option>
-              {availableDepartments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.code} - {department.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-        <Field label="Loss category" htmlFor="loss-category" required>
-          <select
-            id="loss-category"
-            value={form.lossCategory}
-            onChange={(event) => updateField('lossCategory', event.target.value)}
-            className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
-            required
-          >
-            <option value="" disabled>Select loss category</option>
-            {lossCategories.map((lossCategory) => (
-              <option key={lossCategory.id} value={lossCategory.code}>
-                {lossCategory.code}
+        <Field label="Detection date" htmlFor="detection-date" required>
+          <TextInput id="detection-date" type="date" value={form.detectionDate} onChange={(event) => updateField('detectionDate', event.target.value)} required />
+        </Field>
+        <Field label="Branch" htmlFor="branch-id" required>
+          <select id="branch-id" value={form.branchId} onChange={(event) => updateField('branchId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select branch</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.code} - {branch.name}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Event type" htmlFor="event-type" required>
-          <select
-            id="event-type"
-            value={form.eventType}
-            onChange={(event) => updateField('eventType', event.target.value)}
-            className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
-            required
-          >
-            <option value="" disabled>Select event type</option>
-            {eventTypes.map((eventType) => (
-              <option key={eventType.id} value={eventType.code}>
-                {eventType.code} - {eventType.name}
+        <Field label="Department" htmlFor="department-id" required>
+          <select id="department-id" value={form.departmentId} onChange={(event) => updateField('departmentId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select department</option>
+            {departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.code} - {department.name}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Severity" htmlFor="severity" required>
-          <SelectInput
-            id="severity"
-            options={SEVERITIES}
-            value={form.severity}
-            onChange={(event) => updateField('severity', event.target.value)}
-          />
+        <Field label="Process name" htmlFor="process-name" required>
+          <TextInput id="process-name" value={form.processName} onChange={(event) => updateField('processName', event.target.value)} required />
         </Field>
-        <Field label="Description" htmlFor="description" span={3} required>
-          <TextArea
-            id="description"
-            value={form.description}
-            onChange={(event) => updateField('description', event.target.value)}
-            placeholder="Describe the incident"
-            required
-          />
+        <Field label="Product / service" htmlFor="product-service" required>
+          <TextInput id="product-service" value={form.productService} onChange={(event) => updateField('productService', event.target.value)} required />
+        </Field>
+        <Field label="Basel event category" htmlFor="basel-event-category" required>
+          <select id="basel-event-category" value={form.baselEventCategoryId} onChange={(event) => updateField('baselEventCategoryId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select Basel event category</option>
+            {renderConfigOptions(baselEventCategories)}
+          </select>
+        </Field>
+        <Field label="Event description" htmlFor="event-description" span={3} required>
+          <TextArea id="event-description" value={form.eventDescription} onChange={(event) => updateField('eventDescription', event.target.value)} required />
+        </Field>
+        <Field label="Immediate action taken" htmlFor="immediate-action" span={3} required>
+          <TextArea id="immediate-action" value={form.immediateActionTaken} onChange={(event) => updateField('immediateActionTaken', event.target.value)} required />
         </Field>
       </FormSection>
 
-      <FormSection title="Financial impact">
-        <Field label="Currency code" htmlFor="currency-code" required>
-          <TextInput
-            id="currency-code"
-            value={form.currencyCode}
-            onChange={(event) => updateField('currencyCode', event.target.value.toUpperCase())}
-            placeholder="USD"
-            required
-          />
+      <FormSection title="Cause and impact">
+        <Field label="Root cause" htmlFor="root-cause-category" required>
+          <select id="root-cause-category" value={form.rootCauseCategoryId} onChange={(event) => updateField('rootCauseCategoryId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select root cause</option>
+            {renderConfigOptions(rootCauses)}
+          </select>
+        </Field>
+        <Field label="Root cause description" htmlFor="root-cause-description" span={2} required>
+          <TextArea id="root-cause-description" value={form.rootCauseDescription} onChange={(event) => updateField('rootCauseDescription', event.target.value)} required />
+        </Field>
+        <Field label="Control" htmlFor="control-id" required>
+          <select id="control-id" value={form.controlId} onChange={(event) => updateField('controlId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select control</option>
+            {renderConfigOptions(controls)}
+          </select>
+        </Field>
+        <Field label="Failed / missing control">
+          <ToggleField label={form.failedMissingControl ? 'Yes' : 'No'} checked={form.failedMissingControl} onChange={(value) => updateField('failedMissingControl', value)} />
+        </Field>
+        <Field label="Non-financial impact type" htmlFor="non-financial-impact-type">
+          <TextInput id="non-financial-impact-type" value={form.nonFinancialImpactType} onChange={(event) => updateField('nonFinancialImpactType', event.target.value)} />
+        </Field>
+        <Field label="Non-financial impact details" htmlFor="non-financial-impact-details" span={2}>
+          <TextArea id="non-financial-impact-details" value={form.nonFinancialImpactDetails} onChange={(event) => updateField('nonFinancialImpactDetails', event.target.value)} />
+        </Field>
+      </FormSection>
+
+      <FormSection title="Financial impact and closure">
+        <Field label="Currency" htmlFor="currency-id" required>
+          <select id="currency-id" value={form.currencyId} onChange={(event) => updateField('currencyId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select currency</option>
+            {renderConfigOptions(currencies)}
+          </select>
         </Field>
         <Field label="Gross loss" htmlFor="gross-loss" required>
-          <TextInput
-            id="gross-loss"
-            type="number"
-            min={0}
-            value={form.grossLoss}
-            onChange={(event) => updateField('grossLoss', event.target.value)}
-            required
-          />
+          <TextInput id="gross-loss" type="number" min={0} value={form.grossLoss} onChange={(event) => updateField('grossLoss', event.target.value)} required />
         </Field>
-        <Field label="Recoveries" htmlFor="recoveries" required>
-          <TextInput
-            id="recoveries"
-            type="number"
-            min={0}
-            value={form.recoveries}
-            onChange={(event) => updateField('recoveries', event.target.value)}
-            required
-          />
+        <Field label="Restitution / remediation cost" htmlFor="restitution-cost" required>
+          <TextInput id="restitution-cost" type="number" min={0} value={form.restitutionRemediationCost} onChange={(event) => updateField('restitutionRemediationCost', event.target.value)} required />
         </Field>
-        <Field label="Potential loss" htmlFor="potential-loss" required>
-          <TextInput
-            id="potential-loss"
-            type="number"
-            min={0}
-            value={form.potentialLoss}
-            onChange={(event) => updateField('potentialLoss', event.target.value)}
-            required
-          />
+        <Field label="Recovery method" htmlFor="recovery-method" required>
+          <select id="recovery-method" value={form.recoveryMethodId} onChange={(event) => updateField('recoveryMethodId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select recovery method</option>
+            {renderConfigOptions(recoveryMethods)}
+          </select>
         </Field>
-        <Field label="Net loss">
-          <ReadOnlyValue value={formatCurrency(netLoss, form.currencyCode || 'USD')} />
+        <Field label="Accounting GL reference" htmlFor="gl-reference">
+          <TextInput id="gl-reference" value={form.accountingGlReference} onChange={(event) => updateField('accountingGlReference', event.target.value)} />
+        </Field>
+        <Field label="Data source" htmlFor="data-source" required>
+          <select id="data-source" value={form.dataSourceId} onChange={(event) => updateField('dataSourceId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select data source</option>
+            {renderConfigOptions(dataSources)}
+          </select>
+        </Field>
+        <Field label="Corrective action" htmlFor="corrective-action" span={2}>
+          <TextArea id="corrective-action" value={form.correctiveAction} onChange={(event) => updateField('correctiveAction', event.target.value)} />
+        </Field>
+        <Field label="Action owner" htmlFor="action-owner">
+          <TextInput id="action-owner" value={form.actionOwner} onChange={(event) => updateField('actionOwner', event.target.value)} />
+        </Field>
+        <Field label="Action target date" htmlFor="action-target-date">
+          <TextInput id="action-target-date" type="date" value={form.actionTargetDate} onChange={(event) => updateField('actionTargetDate', event.target.value)} />
+        </Field>
+        <Field label="Action status" htmlFor="action-status-id" required>
+          <select id="action-status-id" value={form.actionStatusId} onChange={(event) => updateField('actionStatusId', event.target.value)} className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy" required>
+            <option value="" disabled>Select action status</option>
+            {renderConfigOptions(actionStatuses)}
+          </select>
+        </Field>
+        <Field label="Preventive control implemented">
+          <ToggleField label={form.preventiveControlImplemented ? 'Yes' : 'No'} checked={form.preventiveControlImplemented} onChange={(value) => updateField('preventiveControlImplemented', value)} />
+        </Field>
+        <Field label="Validation evidence" htmlFor="validation-evidence" span={2}>
+          <TextArea id="validation-evidence" value={form.validationEvidence} onChange={(event) => updateField('validationEvidence', event.target.value)} />
+        </Field>
+        <Field label="Closure validation date" htmlFor="closure-validation-date">
+          <TextInput id="closure-validation-date" type="date" value={form.closureValidationDate} onChange={(event) => updateField('closureValidationDate', event.target.value)} />
+        </Field>
+        <Field label="Closure comment" htmlFor="closure-comment" span={2}>
+          <TextArea id="closure-comment" value={form.closureComment} onChange={(event) => updateField('closureComment', event.target.value)} />
         </Field>
       </FormSection>
 

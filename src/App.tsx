@@ -31,11 +31,14 @@ import {
   Currencies,
   DataSources,
   EventStatuses,
+  KriCategories,
   RecoveryMethods,
   ResidualRisks,
   RootCauses,
+  UnitsOfMeasure,
   ValidationResults
 } from './pages/SystemConfigurationPage';
+import { TreatmentStrategies } from './pages/TreatmentStrategies';
 
 function Guard({ engine, children }: {engine: EngineKey;children: React.ReactNode;}) {
   const { user } = useAuth();
@@ -191,6 +194,30 @@ function Routing() {
           element={
             <Guard engine="currencies">
               <Currencies />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/kri-categories"
+          element={
+            <Guard engine="kriCategories">
+              <KriCategories />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/treatment-strategies"
+          element={
+            <Guard engine="treatmentStrategies">
+              <TreatmentStrategies />
+            </Guard>
+          }
+        />
+        <Route
+          path="/system-configurations/units-of-measure"
+          element={
+            <Guard engine="unitsOfMeasure">
+              <UnitsOfMeasure />
             </Guard>
           }
         />

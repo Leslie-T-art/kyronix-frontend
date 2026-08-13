@@ -2,17 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { Loader2Icon } from 'lucide-react';
 import { FormDrawer } from '../shared/FormDrawer';
 import { Field, FormSection, SelectInput, TextArea, TextInput } from '../ui/Field';
-import type { KriRecord, KriRecordPayload } from '../../types';
+import type { Department, KriRecord, KriRecordPayload, RiskRecord } from '../../types';
 
 const CATEGORIES = ['Technology', 'Operations', 'Credit', 'People', 'Compliance', 'Conduct', 'Physical Security', 'Liquidity'];
 const FREQUENCIES = ['Daily', 'Weekly', 'Monthly', 'Quarterly'];
 const DIRECTIONS = ['Higher is worse', 'Lower is worse', 'Target range'];
 const ESCALATIONS = ['Head of Risk', 'Risk Committee', 'EXCO', 'Board Risk Committee'];
+const UNITS_OF_MEASURE = ['Count', 'Percentage', 'Amount', 'Days', 'Hours', 'Minutes', 'Basis Points', 'Ratio'];
 
 interface KriFormProps {
   open: boolean;
   mode: 'create' | 'edit';
   initialValues?: KriRecord | null;
+  departments: Department[];
+  riskRecords: RiskRecord[];
   isSubmitting?: boolean;
   submitError?: string | null;
   onClose: () => void;
@@ -68,6 +71,8 @@ export function KriForm({
   open,
   mode,
   initialValues,
+  departments,
+  riskRecords,
   isSubmitting = false,
   submitError,
   onClose,
@@ -83,6 +88,12 @@ export function KriForm({
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
+
+  const businessUnitOptions = departments.map((department) => department.name);
+  const linkedRiskOptions = riskRecords.map((risk) => `${risk.riskId} - ${risk.riskTitle}`);
+  const unitOfMeasureOptions = Array.from(
+    new Set(initialValues?.unitOfMeasure ? [...UNITS_OF_MEASURE, initialValues.unitOfMeasure] : UNITS_OF_MEASURE)
+  );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -130,7 +141,12 @@ export function KriForm({
           <TextInput id="kri-owner" value={form.owner} onChange={(event) => updateField('owner', event.target.value)} />
         </Field>
         <Field label="Business unit" htmlFor="kri-unit" required>
-          <TextInput id="kri-unit" value={form.businessUnit} onChange={(event) => updateField('businessUnit', event.target.value)} />
+          <SelectInput
+            id="kri-unit"
+            options={businessUnitOptions}
+            value={form.businessUnit}
+            onChange={(event) => updateField('businessUnit', event.target.value)}
+          />
         </Field>
         <Field label="Measurement frequency" htmlFor="kri-frequency" required>
           <SelectInput id="kri-frequency" options={FREQUENCIES} value={form.measurementFrequency} onChange={(event) => updateField('measurementFrequency', event.target.value)} />
@@ -142,7 +158,12 @@ export function KriForm({
 
       <FormSection title="Thresholds and measurement">
         <Field label="Unit of measure" htmlFor="kri-unit-label" required>
-          <TextInput id="kri-unit-label" value={form.unitOfMeasure} onChange={(event) => updateField('unitOfMeasure', event.target.value)} />
+          <SelectInput
+            id="kri-unit-label"
+            options={unitOfMeasureOptions}
+            value={form.unitOfMeasure}
+            onChange={(event) => updateField('unitOfMeasure', event.target.value)}
+          />
         </Field>
         <Field label="Target" htmlFor="kri-target" required>
           <TextInput id="kri-target" type="number" step="any" value={form.target} onChange={(event) => updateField('target', event.target.value)} />
@@ -172,7 +193,12 @@ export function KriForm({
 
       <FormSection title="Risk linking and escalation">
         <Field label="Linked risk" htmlFor="kri-risk" span={2}>
-          <TextInput id="kri-risk" value={form.linkedRisk} onChange={(event) => updateField('linkedRisk', event.target.value)} />
+          <SelectInput
+            id="kri-risk"
+            options={linkedRiskOptions}
+            value={form.linkedRisk}
+            onChange={(event) => updateField('linkedRisk', event.target.value)}
+          />
         </Field>
         <Field label="Escalate to" htmlFor="kri-escalate">
           <SelectInput id="kri-escalate" options={ESCALATIONS} value={form.escalateTo} onChange={(event) => updateField('escalateTo', event.target.value)} />
