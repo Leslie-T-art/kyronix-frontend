@@ -10,6 +10,12 @@ interface SelfAssessmentFormProps {
   open: boolean;
   mode: 'create' | 'edit';
   departments: Department[];
+  riskOptions: string[];
+  residualImpactOptions: string[];
+  controlsOptions: string[];
+  linkedActionOptions: string[];
+  linkedKriOptions: string[];
+  linkedOltsEventOptions: string[];
   initialValues?: SelfAssessment | null;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -46,15 +52,12 @@ interface FormState {
   nextReviewDate: string;
 }
 
-function joinValues(values?: string[]): string {
-  return (values ?? []).join(', ');
+function firstValue(values?: string[]): string {
+  return values?.[0] ?? '';
 }
 
-function parseValues(value: string): string[] {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
+function toSingleValueArray(value: string): string[] {
+  return value.trim() ? [value.trim()] : [];
 }
 
 function toFormState(initialValues?: SelfAssessment | null): FormState {
@@ -69,7 +72,7 @@ function toFormState(initialValues?: SelfAssessment | null): FormState {
     consequenceImpact: initialValues?.consequenceImpact ?? '',
     inherentImpact: initialValues?.inherentImpact ? String(initialValues.inherentImpact) : '',
     inherentLikelihood: initialValues?.inherentLikelihood ? String(initialValues.inherentLikelihood) : '',
-    linkedControls: joinValues(initialValues?.linkedControls),
+    linkedControls: firstValue(initialValues?.linkedControls),
     controlDesignEffectiveness: initialValues?.controlDesignEffectiveness ?? '',
     controlOperatingEffectiveness: initialValues?.controlOperatingEffectiveness ?? '',
     overallControlEffectiveness: initialValues?.overallControlEffectiveness ?? '',
@@ -78,9 +81,9 @@ function toFormState(initialValues?: SelfAssessment | null): FormState {
     riskResponse: initialValues?.riskResponse ?? '',
     actionRequired: initialValues?.actionRequired ?? false,
     linkedAction: initialValues?.linkedAction ?? '',
-    linkedKris: joinValues(initialValues?.linkedKris),
-    linkedOltsEvents: joinValues(initialValues?.linkedOltsEvents),
-    linkedIssuesFindings: joinValues(initialValues?.linkedIssuesFindings),
+    linkedKris: firstValue(initialValues?.linkedKris),
+    linkedOltsEvents: firstValue(initialValues?.linkedOltsEvents),
+    linkedIssuesFindings: firstValue(initialValues?.linkedIssuesFindings),
     businessReviewStatus: initialValues?.businessReviewStatus ?? '',
     riskReviewVerification: initialValues?.riskReviewVerification ?? '',
     riskReviewComment: initialValues?.riskReviewComment ?? '',
@@ -93,6 +96,12 @@ export function SelfAssessmentForm({
   open,
   mode,
   departments,
+  riskOptions,
+  residualImpactOptions,
+  controlsOptions,
+  linkedActionOptions,
+  linkedKriOptions,
+  linkedOltsEventOptions,
   initialValues,
   isSubmitting = false,
   submitError,
@@ -122,7 +131,7 @@ export function SelfAssessmentForm({
       consequenceImpact: form.consequenceImpact.trim(),
       inherentImpact: Number(form.inherentImpact) || 0,
       inherentLikelihood: Number(form.inherentLikelihood) || 0,
-      linkedControls: parseValues(form.linkedControls),
+      linkedControls: toSingleValueArray(form.linkedControls),
       controlDesignEffectiveness: form.controlDesignEffectiveness.trim(),
       controlOperatingEffectiveness: form.controlOperatingEffectiveness.trim(),
       overallControlEffectiveness: form.overallControlEffectiveness.trim(),
@@ -131,9 +140,9 @@ export function SelfAssessmentForm({
       riskResponse: form.riskResponse.trim(),
       actionRequired: form.actionRequired,
       linkedAction: form.linkedAction.trim(),
-      linkedKris: parseValues(form.linkedKris),
-      linkedOltsEvents: parseValues(form.linkedOltsEvents),
-      linkedIssuesFindings: parseValues(form.linkedIssuesFindings),
+      linkedKris: toSingleValueArray(form.linkedKris),
+      linkedOltsEvents: toSingleValueArray(form.linkedOltsEvents),
+      linkedIssuesFindings: toSingleValueArray(form.linkedIssuesFindings),
       businessReviewStatus: form.businessReviewStatus.trim(),
       riskReviewVerification: form.riskReviewVerification.trim(),
       riskReviewComment: form.riskReviewComment.trim(),
@@ -188,8 +197,10 @@ export function SelfAssessmentForm({
           />
         </Field>
         <Field label="Risk register risk" htmlFor="risk-register-risk" required>
-          <TextInput
+          <SelectInput
             id="risk-register-risk"
+            options={riskOptions}
+            placeholder="Select risk"
             value={form.riskRegisterRisk}
             onChange={(event) => updateField('riskRegisterRisk', event.target.value)}
             required
@@ -241,7 +252,7 @@ export function SelfAssessmentForm({
         <Field label="Residual impact" htmlFor="residual-impact" required>
           <SelectInput
             id="residual-impact"
-            options={SCALE}
+            options={residualImpactOptions}
             value={form.residualImpact}
             onChange={(event) => updateField('residualImpact', event.target.value)}
           />
@@ -265,9 +276,11 @@ export function SelfAssessmentForm({
       </FormSection>
 
       <FormSection title="Controls and links">
-        <Field label="Linked controls" htmlFor="linked-controls" span={2} hint="Comma-separated values">
-          <TextArea
+        <Field label="Linked controls" htmlFor="linked-controls" span={2}>
+          <SelectInput
             id="linked-controls"
+            options={controlsOptions}
+            placeholder="Select control"
             value={form.linkedControls}
             onChange={(event) => updateField('linkedControls', event.target.value)}
           />
@@ -304,28 +317,34 @@ export function SelfAssessmentForm({
           />
         </Field>
         <Field label="Linked action" htmlFor="linked-action">
-          <TextInput
+          <SelectInput
             id="linked-action"
+            options={linkedActionOptions}
+            placeholder="Select action"
             value={form.linkedAction}
             onChange={(event) => updateField('linkedAction', event.target.value)}
           />
         </Field>
-        <Field label="Linked KRIs" htmlFor="linked-kris" hint="Comma-separated values">
-          <TextArea
+        <Field label="Linked KRIs" htmlFor="linked-kris">
+          <SelectInput
             id="linked-kris"
+            options={linkedKriOptions}
+            placeholder="Select KRI"
             value={form.linkedKris}
             onChange={(event) => updateField('linkedKris', event.target.value)}
           />
         </Field>
-        <Field label="Linked OLTS events" htmlFor="linked-olts" hint="Comma-separated values">
-          <TextArea
+        <Field label="Linked OLTS events" htmlFor="linked-olts">
+          <SelectInput
             id="linked-olts"
+            options={linkedOltsEventOptions}
+            placeholder="Select OLTS event"
             value={form.linkedOltsEvents}
             onChange={(event) => updateField('linkedOltsEvents', event.target.value)}
           />
         </Field>
-        <Field label="Linked issues / findings" htmlFor="linked-findings" hint="Comma-separated values">
-          <TextArea
+        <Field label="Linked issues / findings" htmlFor="linked-findings">
+          <TextInput
             id="linked-findings"
             value={form.linkedIssuesFindings}
             onChange={(event) => updateField('linkedIssuesFindings', event.target.value)}

@@ -377,7 +377,7 @@ export interface RiskRecord {
   treatmentStrategy: string;
   status: string;
   nextReviewDate: string;
-  linkedProcess: string;
+  linkedProcess: string | null;
   linkedKri: string;
   actionPlan: string;
   createdAt?: string;
@@ -401,7 +401,7 @@ export interface RiskRecordPayload {
   treatmentStrategy: string;
   status: string;
   nextReviewDate: string;
-  linkedProcess: string;
+  linkedProcess: string | null;
   linkedKri: string;
   actionPlan: string;
 }
@@ -641,4 +641,99 @@ export interface DashboardSummary {
     tone: SemanticTone;
   }[];
   activity: {id: string;actor: string;action: string;time: string;}[];
+}
+
+export interface DashboardMetric {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+  trend: number | null;
+  severity: 'critical' | 'warning' | 'info' | 'positive' | 'neutral';
+}
+
+export interface DashboardRoleSummary {
+  roleCode: string;
+  roleName: string;
+  focus: string;
+  metrics: DashboardMetric[];
+  breakdowns: Record<string, number>;
+}
+
+export interface DashboardRoleCatalogEntry {
+  roleCode: string;
+  roleName: string;
+  audience: string;
+  purpose: string;
+  primaryKpis: string[];
+  recommendedWidgets: string[];
+}
+
+export interface DashboardTopActor {
+  username: string;
+  events: number;
+  failures: number;
+}
+
+export interface DashboardInsight {
+  level: 'critical' | 'warning' | 'info' | 'positive';
+  title: string;
+  description: string;
+}
+
+export interface DashboardSummaryPayload {
+  generatedAt: string;
+  user: {
+    userId: number;
+    username: string;
+    roles: string[];
+    departmentIds: number[];
+    branchIds: number[];
+  };
+  headlineMetrics: DashboardMetric[];
+  portfolio: {
+    riskRecords: number;
+    selfAssessments: number;
+    kriRecords: number;
+    oltsIncidents: number;
+    processFlows: number;
+    overdueReviews: number;
+    residualRiskDistribution: Record<string, number>;
+    kriThresholdDistribution: Record<string, number>;
+    incidentAuthorizationDistribution: Record<string, number>;
+    processFlowWorkflowDistribution: Record<string, number>;
+  };
+  workflow: {
+    pendingApprovals: number;
+    returnedForCorrection: number;
+    rejectedItems: number;
+    approvedLast30Days: number;
+    submittedLast30Days: number;
+    averagePendingAgeDays: number;
+    queueByModule: Record<string, number>;
+    agingBuckets: Array<{label: string;count: number;}>;
+  };
+  notifications: {
+    total: number;
+    unread: number;
+    active: number;
+    expired: number;
+    byPriority: Record<string, number>;
+    bySourceService: Record<string, number>;
+  };
+  activity: {
+    auditEventsLast24Hours: number;
+    auditEventsLast7Days: number;
+    failedEventsLast7Days: number;
+    loginSuccessesLast30Days: number;
+    serviceActivity: Record<string, number>;
+    actionOutcomes: Record<string, number>;
+    topActors: DashboardTopActor[];
+  };
+  roleAnalytics: DashboardRoleSummary[];
+  insights: DashboardInsight[];
+}
+
+export interface DashboardRolesPayload {
+  roles: DashboardRoleCatalogEntry[];
 }

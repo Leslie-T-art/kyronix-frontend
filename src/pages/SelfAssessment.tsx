@@ -18,12 +18,24 @@ import {
   deleteSelfAssessment,
   getSelfAssessment,
   listDepartments,
+  listKriRecords,
+  listOltsConfigurationItems,
+  listOltsIncidents,
+  listRiskRecords,
   listSelfAssessments,
   updateSelfAssessment
 } from '../lib/api/client';
 import type { ApiError } from '../lib/api/errors';
 import { formatDate, formatDateTime } from '../utils/cn';
-import type { Department, SelfAssessment, SelfAssessmentPayload } from '../types';
+import type {
+  Department,
+  KriRecord,
+  OltsConfigurationItem,
+  OltsIncident,
+  RiskRecord,
+  SelfAssessment,
+  SelfAssessmentPayload
+} from '../types';
 
 interface SelfAssessmentListPayload {
   content?: SelfAssessment[];
@@ -40,10 +52,20 @@ function statusForAssessment(record: SelfAssessment): string {
   return 'In Progress';
 }
 
+function uniqueOptions(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value))));
+}
+
 export function SelfAssessmentPage() {
   const { user, accessToken, signOut } = useAuth();
   const [rows, setRows] = useState<SelfAssessment[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [riskRecords, setRiskRecords] = useState<RiskRecord[]>([]);
+  const [residualRisks, setResidualRisks] = useState<OltsConfigurationItem[]>([]);
+  const [controls, setControls] = useState<OltsConfigurationItem[]>([]);
+  const [actionStatuses, setActionStatuses] = useState<OltsConfigurationItem[]>([]);
+  const [kriRecords, setKriRecords] = useState<KriRecord[]>([]);
+  const [oltsIncidents, setOltsIncidents] = useState<OltsIncident[]>([]);
   const [error, setError] = useState<ApiError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [count, setCount] = useState<number | null>(null);
@@ -59,6 +81,24 @@ export function SelfAssessmentPage() {
   const [deleteTarget, setDeleteTarget] = useState<SelfAssessment | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const canManage = user?.role === 'Admin' || user?.role === 'RiskManager';
+  const riskOptions = useMemo(
+    () => uniqueOptions(riskRecords.map((risk) => `${risk.riskId} - ${risk.riskTitle}`)),
+    [riskRecords]
+  );
+  const residualImpactOptions = useMemo(
+    () => uniqueOptions(residualRisks.map((item) => item.displayOrder ? String(item.displayOrder) : item.name)),
+    [residualRisks]
+  );
+  const controlsOptions = useMemo(() => uniqueOptions(controls.map((item) => item.name)), [controls]);
+  const linkedActionOptions = useMemo(() => uniqueOptions(actionStatuses.map((item) => item.name)), [actionStatuses]);
+  const linkedKriOptions = useMemo(
+    () => uniqueOptions(kriRecords.map((item) => `${item.kriId} - ${item.indicatorName}`)),
+    [kriRecords]
+  );
+  const linkedOltsEventOptions = useMemo(
+    () => uniqueOptions(oltsIncidents.map((item) => `${item.eventId} - ${item.eventTitle}`)),
+    [oltsIncidents]
+  );
 
   const handleUnauthorized = useCallback(
     (nextError: ApiError | null) => {
@@ -76,6 +116,52 @@ export function SelfAssessmentPage() {
     const response = await listDepartments(accessToken);
     if (handleUnauthorized(response.error)) return;
     setDepartments(response.data ?? []);
+  }, [accessToken, handleUnauthorized]);
+
+  const loadFormOptions = useCallback(async () => {
+    if (!accessToken) return;
+
+    const [
+      departmentsResponse,
+      riskRecordsResponse,
+      residualRisksResponse,
+      controlsResponse,
+      actionStatusesResponse,
+      kriRecordsResponse,
+      oltsIncidentsResponse
+    ] = await Promise.all([
+      listDepartments(accessToken),
+      listRiskRecords(accessToken),
+      listOltsConfigurationItems(accessToken, 'residual-risks'),
+      listOltsConfigurationItems(accessToken, 'controls'),
+      listOltsConfigurationItems(accessToken, 'action-statuses'),
+      listKriRecords(accessToken),
+      listOltsIncidents(accessToken)
+    ]);
+
+    const firstError =
+      departmentsResponse.error ??
+      riskRecordsResponse.error ??
+      residualRisksResponse.error ??
+      controlsResponse.error ??
+      actionStatusesResponse.error ??
+      kriRecordsResponse.error ??
+      oltsIncidentsResponse.error;
+
+    if (handleUnauthorized(firstError)) return;
+
+    if (firstError) {
+      setError(firstError);
+      return;
+    }
+
+    setDepartments(departmentsResponse.data ?? []);
+    setRiskRecords(riskRecordsResponse.data ?? []);
+    setResidualRisks(residualRisksResponse.data ?? []);
+    setControls(controlsResponse.data ?? []);
+    setActionStatuses(actionStatusesResponse.data ?? []);
+    setKriRecords(kriRecordsResponse.data ?? []);
+    setOltsIncidents(oltsIncidentsResponse.data ?? []);
   }, [accessToken, handleUnauthorized]);
 
   const loadAssessments = useCallback(async () => {
@@ -106,9 +192,9 @@ export function SelfAssessmentPage() {
 
   useEffect(() => {
     void loadAssessments();
-    void loadDepartmentsData();
+    void loadFormOptions();
     void loadCount();
-  }, [loadAssessments, loadCount, loadDepartmentsData]);
+  }, [loadAssessments, loadCount, loadFormOptions]);
 
   async function loadDetail(id: string | number) {
     if (!accessToken) return;
@@ -339,6 +425,12 @@ export function SelfAssessmentPage() {
         open={formOpen}
         mode={formMode}
         departments={departments}
+        riskOptions={riskOptions}
+        residualImpactOptions={residualImpactOptions}
+        controlsOptions={controlsOptions}
+        linkedActionOptions={linkedActionOptions}
+        linkedKriOptions={linkedKriOptions}
+        linkedOltsEventOptions={linkedOltsEventOptions}
         initialValues={selected}
         isSubmitting={formBusy}
         submitError={formError}

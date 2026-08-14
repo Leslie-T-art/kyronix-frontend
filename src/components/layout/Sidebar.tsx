@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   ChevronDownIcon,
   ChevronsLeftIcon,
-  ChevronsRightIcon,
-  LogOutIcon,
-  UserCircle2Icon
+  ChevronsRightIcon
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,9 +26,8 @@ function isItemActive(item: NavItem, pathname: string): boolean {
 }
 
 export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarProps) {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { unreadCount } = useNotifications();
-  const navigate = useNavigate();
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -199,36 +196,6 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
             </div>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            navigate('/profile');
-            onNavigate?.();
-          }}
-          className={cn(
-            'mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-navy',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy',
-            collapsed && 'justify-center px-0'
-          )}
-        >
-          <UserCircle2Icon className="h-4 w-4 shrink-0" />
-          {!collapsed && 'Profile'}
-        </button>
-
-        <button
-          type="button"
-          onClick={signOut}
-          className={cn(
-            'mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-red-50 hover:text-red-700',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy',
-            collapsed && 'justify-center px-0'
-          )}
-        >
-          <LogOutIcon className="h-4 w-4 shrink-0" />
-          {!collapsed && 'Log out'}
-        </button>
-
         <button
           type="button"
           onClick={onToggleCollapsed}

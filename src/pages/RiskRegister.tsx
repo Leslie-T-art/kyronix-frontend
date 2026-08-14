@@ -24,12 +24,28 @@ import {
   createRiskRecord,
   deleteRiskRecord,
   getRiskRecord,
+  listAdminUsers,
+  listDepartments,
+  listKriRecords,
+  listLossCategories,
+  listOltsConfigurationItems,
   listRiskRecords,
+  listTreatmentStrategies,
   updateRiskRecord
 } from '../lib/api/client';
 import type { ApiError } from '../lib/api/errors';
 import { formatDate, formatDateTime } from '../utils/cn';
-import type { RiskEntry, RiskRecord, RiskRecordPayload } from '../types';
+import type {
+  AdminUserRecord,
+  Department,
+  KriRecord,
+  LossCategory,
+  OltsConfigurationItem,
+  RiskEntry,
+  RiskRecord,
+  RiskRecordPayload,
+  TreatmentStrategy
+} from '../types';
 
 function toEntry(record: RiskRecord): RiskEntry {
   return {
@@ -53,9 +69,21 @@ function canManageRiskRegister(role: string): boolean {
   return ['Admin', 'Head', 'RiskManager', 'ProcessOwner', 'Inputter'].includes(role);
 }
 
+function uniqueOptions(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value))));
+}
+
 export function RiskRegister() {
   const { user, accessToken, signOut } = useAuth();
   const [records, setRecords] = useState<RiskRecord[]>([]);
+  const [lossCategories, setLossCategories] = useState<LossCategory[]>([]);
+  const [users, setUsers] = useState<AdminUserRecord[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [controls, setControls] = useState<OltsConfigurationItem[]>([]);
+  const [kriRecords, setKriRecords] = useState<KriRecord[]>([]);
+  const [residualRisks, setResidualRisks] = useState<OltsConfigurationItem[]>([]);
+  const [treatmentStrategies, setTreatmentStrategies] = useState<TreatmentStrategy[]>([]);
+  const [eventStatuses, setEventStatuses] = useState<OltsConfigurationItem[]>([]);
   const [error, setError] = useState<ApiError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRisk, setSelectedRisk] = useState<RiskRecord | null>(null);
@@ -74,6 +102,26 @@ export function RiskRegister() {
 
   const rows = useMemo(() => records.map(toEntry), [records]);
   const canManage = user ? canManageRiskRegister(user.role) : false;
+  const categoryOptions = useMemo(() => uniqueOptions(lossCategories.map((item) => item.name)), [lossCategories]);
+  const ownerOptions = useMemo(
+    () => uniqueOptions(users.filter((item) => item.active).map((item) => item.fullName || item.username)),
+    [users]
+  );
+  const businessUnitOptions = useMemo(
+    () => uniqueOptions(departments.filter((item) => item.active).map((item) => item.name)),
+    [departments]
+  );
+  const controlsOptions = useMemo(() => uniqueOptions(controls.map((item) => item.name)), [controls]);
+  const linkedKriOptions = useMemo(
+    () => uniqueOptions(kriRecords.map((item) => `${item.kriId} - ${item.indicatorName}`)),
+    [kriRecords]
+  );
+  const residualRatingOptions = useMemo(() => uniqueOptions(residualRisks.map((item) => item.name)), [residualRisks]);
+  const treatmentStrategyOptions = useMemo(
+    () => uniqueOptions(treatmentStrategies.map((item) => item.name)),
+    [treatmentStrategies]
+  );
+  const statusOptions = useMemo(() => uniqueOptions(eventStatuses.map((item) => item.name)), [eventStatuses]);
 
   const handleApiError = useCallback((nextError: ApiError | null, scope: 'page' | 'detail' = 'page') => {
     if (nextError?.code === 'UNAUTHORIZED') {
@@ -102,9 +150,62 @@ export function RiskRegister() {
     setIsLoading(false);
   }, [accessToken, handleApiError]);
 
+  const loadSupportData = useCallback(async () => {
+    if (!accessToken) return;
+
+    const [
+      lossCategoriesResponse,
+      usersResponse,
+      departmentsResponse,
+      controlsResponse,
+      kriRecordsResponse,
+      residualRisksResponse,
+      treatmentStrategiesResponse,
+      eventStatusesResponse
+    ] = await Promise.all([
+      listLossCategories(accessToken),
+      listAdminUsers(accessToken),
+      listDepartments(accessToken),
+      listOltsConfigurationItems(accessToken, 'controls'),
+      listKriRecords(accessToken),
+      listOltsConfigurationItems(accessToken, 'residual-risks'),
+      listTreatmentStrategies(accessToken),
+      listOltsConfigurationItems(accessToken, 'event-statuses')
+    ]);
+
+    const firstError =
+      lossCategoriesResponse.error ??
+      usersResponse.error ??
+      departmentsResponse.error ??
+      controlsResponse.error ??
+      kriRecordsResponse.error ??
+      residualRisksResponse.error ??
+      treatmentStrategiesResponse.error ??
+      eventStatusesResponse.error;
+
+    if (firstError?.code === 'UNAUTHORIZED') {
+      signOut();
+      return;
+    }
+
+    if (firstError) {
+      setError(firstError);
+      return;
+    }
+
+    setLossCategories(lossCategoriesResponse.data ?? []);
+    setUsers(usersResponse.data ?? []);
+    setDepartments(departmentsResponse.data ?? []);
+    setControls(controlsResponse.data ?? []);
+    setKriRecords(kriRecordsResponse.data ?? []);
+    setResidualRisks(residualRisksResponse.data ?? []);
+    setTreatmentStrategies(treatmentStrategiesResponse.data ?? []);
+    setEventStatuses(eventStatusesResponse.data ?? []);
+  }, [accessToken, signOut]);
+
   useEffect(() => {
-    void loadRisks();
-  }, [loadRisks]);
+    void Promise.all([loadRisks(), loadSupportData()]);
+  }, [loadRisks, loadSupportData]);
 
   const openRiskDetail = useCallback(async (riskId: string) => {
     if (!accessToken) return;
@@ -254,7 +355,7 @@ export function RiskRegister() {
       },
       {
         key: 'reviewDate',
-        header: 'Review date',
+        header: 'Due date',
         value: (row) => row.reviewDate,
         render: (row) => formatDate(row.reviewDate)
       },
@@ -418,10 +519,9 @@ export function RiskRegister() {
               <DetailRow label="Owner">{selectedRisk.owner}</DetailRow>
               <DetailRow label="Business unit">{selectedRisk.businessUnit}</DetailRow>
               <DetailRow label="Treatment strategy">{selectedRisk.treatmentStrategy || '—'}</DetailRow>
-              <DetailRow label="Linked process">{selectedRisk.linkedProcess || '—'}</DetailRow>
-              <DetailRow label="Linked KRI">{selectedRisk.linkedKri || '—'}</DetailRow>
+              <DetailRow label="Link a KRI">{selectedRisk.linkedKri || '—'}</DetailRow>
               <DetailRow label="Action plan">{selectedRisk.actionPlan || '—'}</DetailRow>
-              <DetailRow label="Next review">{formatDate(selectedRisk.nextReviewDate)}</DetailRow>
+              <DetailRow label="Due date">{formatDate(selectedRisk.nextReviewDate)}</DetailRow>
               <DetailRow label="Status">
                 <StatusBadge status={selectedRisk.status} />
               </DetailRow>
@@ -436,6 +536,14 @@ export function RiskRegister() {
         open={formOpen}
         mode={formMode}
         initialValue={formRisk}
+        categoryOptions={categoryOptions}
+        ownerOptions={ownerOptions}
+        businessUnitOptions={businessUnitOptions}
+        controlsOptions={controlsOptions}
+        linkedKriOptions={linkedKriOptions}
+        residualRatingOptions={residualRatingOptions}
+        treatmentStrategyOptions={treatmentStrategyOptions}
+        statusOptions={statusOptions}
         busy={formBusy}
         error={formError}
         onClose={() => {

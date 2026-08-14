@@ -1,35 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { FormDrawer } from '../shared/FormDrawer';
 import { Field, FormSection, ReadOnlyValue, SelectInput, TextArea, TextInput } from '../ui/Field';
-import { processFlows } from '../../data/processFlows';
 import type { RiskRecord, RiskRecordPayload } from '../../types';
 
-const CATEGORIES = [
-  'Technology',
-  'Compliance',
-  'Credit',
-  'Fraud',
-  'Outsourcing',
-  'Liquidity',
-  'People',
-  'Physical Security',
-  'Regulatory'
-];
-
-const UNITS = [
-  'Retail Banking',
-  'Corporate Banking',
-  'Treasury',
-  'Operations',
-  'Technology',
-  'Compliance',
-  'Finance',
-  'Human Capital'
-];
-
 const SCALE = ['1', '2', '3', '4', '5'];
-const TREATMENTS = ['Accept', 'Mitigate', 'Transfer', 'Avoid'];
-const STATUSES = ['Open', 'Mitigating', 'Monitoring', 'Closed'];
 const EFFECTIVENESS = ['Effective', 'Partially effective', 'Ineffective', 'Not tested'];
 
 const EMPTY_FORM: RiskRecordPayload = {
@@ -47,7 +21,7 @@ const EMPTY_FORM: RiskRecordPayload = {
   treatmentStrategy: '',
   status: '',
   nextReviewDate: '',
-  linkedProcess: '',
+  linkedProcess: null,
   linkedKri: '',
   actionPlan: ''
 };
@@ -77,7 +51,7 @@ function toPayload(record: RiskRecord | null | undefined): RiskRecordPayload {
     treatmentStrategy: record.treatmentStrategy ?? '',
     status: record.status ?? '',
     nextReviewDate: record.nextReviewDate ?? '',
-    linkedProcess: record.linkedProcess ?? '',
+    linkedProcess: record.linkedProcess ?? null,
     linkedKri: record.linkedKri ?? '',
     actionPlan: record.actionPlan ?? ''
   };
@@ -87,6 +61,14 @@ interface RiskFormProps {
   open: boolean;
   mode: 'create' | 'edit';
   initialValue?: RiskRecord | null;
+  categoryOptions: string[];
+  ownerOptions: string[];
+  businessUnitOptions: string[];
+  controlsOptions: string[];
+  linkedKriOptions: string[];
+  residualRatingOptions: string[];
+  treatmentStrategyOptions: string[];
+  statusOptions: string[];
   busy?: boolean;
   error?: string | null;
   onClose: () => void;
@@ -97,6 +79,14 @@ export function RiskForm({
   open,
   mode,
   initialValue,
+  categoryOptions,
+  ownerOptions,
+  businessUnitOptions,
+  controlsOptions,
+  linkedKriOptions,
+  residualRatingOptions,
+  treatmentStrategyOptions,
+  statusOptions,
   busy = false,
   error = null,
   onClose,
@@ -129,7 +119,8 @@ export function RiskForm({
       ...form,
       likelihood: Number(form.likelihood) || 0,
       impact: Number(form.impact) || 0,
-      inherentRating: computedInherentRating
+      inherentRating: computedInherentRating,
+      linkedProcess: null
     });
   }
 
@@ -162,7 +153,7 @@ export function RiskForm({
         <Field label="Category" htmlFor="risk-category" required>
           <SelectInput
             id="risk-category"
-            options={CATEGORIES}
+            options={categoryOptions}
             placeholder="Select category"
             value={form.category}
             onChange={(event) => update('category', event.target.value)}
@@ -170,19 +161,20 @@ export function RiskForm({
           />
         </Field>
         <Field label="Owner" htmlFor="risk-owner" required>
-          <TextInput
+          <SelectInput
             id="risk-owner"
+            options={ownerOptions}
+            placeholder="Select owner"
             value={form.owner}
             onChange={(event) => update('owner', event.target.value)}
-            placeholder="Accountable function"
             disabled={busy}
           />
         </Field>
         <Field label="Business unit" htmlFor="risk-unit" required>
           <SelectInput
             id="risk-unit"
-            options={UNITS}
-            placeholder="Select unit"
+            options={businessUnitOptions}
+            placeholder="Select business unit"
             value={form.businessUnit}
             onChange={(event) => update('businessUnit', event.target.value)}
             disabled={busy}
@@ -227,11 +219,12 @@ export function RiskForm({
 
       <FormSection title="Controls & treatment">
         <Field label="Controls mapped" htmlFor="risk-controls">
-          <TextInput
+          <SelectInput
             id="risk-controls"
+            options={controlsOptions}
+            placeholder="Select control"
             value={form.controlsMapped}
             onChange={(event) => update('controlsMapped', event.target.value)}
-            placeholder="List the control set or reference IDs"
             disabled={busy}
           />
         </Field>
@@ -248,7 +241,7 @@ export function RiskForm({
         <Field label="Residual rating" htmlFor="risk-residual" required>
           <SelectInput
             id="risk-residual"
-            options={['Low', 'Medium', 'High', 'Critical']}
+            options={residualRatingOptions}
             placeholder="Select rating"
             value={form.residualRating}
             onChange={(event) => update('residualRating', event.target.value)}
@@ -258,7 +251,7 @@ export function RiskForm({
         <Field label="Treatment strategy" htmlFor="risk-treatment" required>
           <SelectInput
             id="risk-treatment"
-            options={TREATMENTS}
+            options={treatmentStrategyOptions}
             placeholder="Select strategy"
             value={form.treatmentStrategy}
             onChange={(event) => update('treatmentStrategy', event.target.value)}
@@ -268,14 +261,14 @@ export function RiskForm({
         <Field label="Status" htmlFor="risk-status" required>
           <SelectInput
             id="risk-status"
-            options={STATUSES}
+            options={statusOptions}
             placeholder="Select status"
             value={form.status}
             onChange={(event) => update('status', event.target.value)}
             disabled={busy}
           />
         </Field>
-        <Field label="Next review date" htmlFor="risk-review" required>
+        <Field label="Due date" htmlFor="risk-review" required>
           <TextInput
             id="risk-review"
             type="date"
@@ -284,22 +277,13 @@ export function RiskForm({
             disabled={busy}
           />
         </Field>
-        <Field label="Linked process" htmlFor="risk-process" span={2}>
+        <Field label="Link a KRI" htmlFor="risk-kri">
           <SelectInput
-            id="risk-process"
-            options={processFlows.map((process) => `${process.id} — ${process.name}`)}
-            placeholder="Select process"
-            value={form.linkedProcess}
-            onChange={(event) => update('linkedProcess', event.target.value)}
-            disabled={busy}
-          />
-        </Field>
-        <Field label="Linked KRI" htmlFor="risk-kri">
-          <TextInput
             id="risk-kri"
+            options={linkedKriOptions}
+            placeholder="Select KRI"
             value={form.linkedKri}
             onChange={(event) => update('linkedKri', event.target.value)}
-            placeholder="Indicator name"
             disabled={busy}
           />
         </Field>

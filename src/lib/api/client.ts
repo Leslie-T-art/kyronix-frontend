@@ -4,6 +4,9 @@ import type {
   AuthAuditEvent,
   Branch,
   BranchPayload,
+  DashboardRoleSummary,
+  DashboardRolesPayload,
+  DashboardSummaryPayload,
   Department,
   DepartmentPayload,
   EventType,
@@ -135,6 +138,7 @@ const NOTIFICATIONS_BASE_URL = trimTrailingSlash(import.meta.env.NOTIFICATIONS_B
 const RISK_REGISTER_BASE_URL = trimTrailingSlash(import.meta.env.RISK_REGISTER_BASE_URL);
 const SELF_ASSESSMENT_BASE_URL = trimTrailingSlash(import.meta.env.SELF_ASSESSMENT_BASE_URL);
 const PROCESS_FLOWS_BASE_URL = trimTrailingSlash(import.meta.env.PROCESS_FLOWS_BASE_URL);
+const DASHBOARD_BASE_URL = trimTrailingSlash(import.meta.env.DASHBOARD_BASE_URL ?? 'http://localhost:8086');
 
 export function getRequestLog(): RequestLog[] {
   return requestLog;
@@ -181,6 +185,11 @@ function resolveSelfAssessmentUrl(path: string): string | null {
 function resolveProcessFlowsUrl(path: string): string | null {
   if (!PROCESS_FLOWS_BASE_URL) return null;
   return `${PROCESS_FLOWS_BASE_URL}${path}`;
+}
+
+function resolveDashboardUrl(path: string): string | null {
+  if (!DASHBOARD_BASE_URL) return null;
+  return `${DASHBOARD_BASE_URL}${path}`;
 }
 
 function formatFieldErrors(fieldErrors?: Record<string, string>): string | undefined {
@@ -762,6 +771,20 @@ function processFlowsBlobRequest(token: string, path: string, init: RequestInit)
   );
 }
 
+function dashboardRequest<T>(token: string, path: string, init: RequestInit): Promise<ApiResponse<T>> {
+  return serviceRequest<T>(
+    resolveDashboardUrl(path),
+    'DASHBOARD_BASE_URL is not configured for this environment.',
+    {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init.headers ?? {})
+      }
+    }
+  );
+}
+
 function toProcessFlowFormData(payload: ProcessFlowPayload): FormData {
   const formData = new FormData();
   formData.append('processFlowName', payload.processFlowName);
@@ -816,6 +839,25 @@ export function updateProcessFlow(
 
 export function deleteProcessFlow(token: string, id: string | number): Promise<ApiResponse<null>> {
   return processFlowsRequest<null>(token, `/process-flows/${id}`, { method: 'DELETE' });
+}
+
+export function getDashboardSummary(token: string): Promise<ApiResponse<DashboardSummaryPayload>> {
+  return dashboardRequest<DashboardSummaryPayload>(token, '/dashboard/summary', { method: 'GET' });
+}
+
+export function listDashboardRoles(token: string): Promise<ApiResponse<DashboardRolesPayload>> {
+  return dashboardRequest<DashboardRolesPayload>(token, '/dashboard/roles', { method: 'GET' });
+}
+
+export function getDashboardRoleAnalytics(
+  token: string,
+  roleCode: string
+): Promise<ApiResponse<DashboardRoleSummary>> {
+  return dashboardRequest<DashboardRoleSummary>(
+    token,
+    `/dashboard/roles/${encodeURIComponent(roleCode)}/analytics`,
+    { method: 'GET' }
+  );
 }
 
 export function submitProcessFlow(token: string, id: string | number): Promise<ApiResponse<ProcessFlowRecord>> {

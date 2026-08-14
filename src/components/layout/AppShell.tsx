@@ -1,19 +1,36 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import { MenuIcon, XIcon } from 'lucide-react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { LogOutIcon, MenuIcon, UserCircle2Icon, XIcon } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { NMB_LOGO } from './navigation';
+import { ThemeToggle } from '../shared/ThemeToggle';
+import { Button } from '../ui/Button';
+import { useAuth } from '../../contexts/AuthContext';
 
 /**
  * The single application frame. Page padding (left / right / top) is defined
  * here once and never overridden by a page.
  */
 export function AppShell() {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-zinc-50">
+      <div className="fixed right-4 top-4 z-[60] flex items-center gap-2">
+        <ThemeToggle />
+        <Button variant="outline" size="sm" onClick={() => navigate('/profile')}>
+          <UserCircle2Icon className="h-4 w-4" />
+          Profile
+        </Button>
+        <Button variant="outline" size="sm" onClick={signOut} className="text-zinc-600 hover:text-red-700">
+          <LogOutIcon className="h-4 w-4" />
+          Log out
+        </Button>
+      </div>
+
       <div className="flex gap-5 p-5">
         <div className="sticky top-5 hidden h-[calc(100vh-2.5rem)] shrink-0 lg:block">
           <Sidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed((v) => !v)} />

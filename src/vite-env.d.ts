@@ -8,6 +8,7 @@ interface ImportMetaEnv {
   readonly RISK_REGISTER_BASE_URL?: string;
   readonly SELF_ASSESSMENT_BASE_URL?: string;
   readonly PROCESS_FLOWS_BASE_URL?: string;
+  readonly DASHBOARD_BASE_URL?: string;
 }
 
 interface ImportMeta {

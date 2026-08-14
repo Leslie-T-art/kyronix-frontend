@@ -21,7 +21,6 @@ import { Events } from './pages/Events';
 import { LossCategories } from './pages/LossCategories';
 import { canAccess } from './lib/auth/roles';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { ThemeToggle } from './components/shared/ThemeToggle';
 import type { EngineKey } from './types';
 import { Profile } from './pages/Profile';
 import {
@@ -282,7 +281,6 @@ export function App() {
       <AuthProvider>
         <NotificationsProvider>
           <BrowserRouter>
-            <ThemeToggle className="fixed right-4 top-4 z-[60]" />
             <Routing />
           </BrowserRouter>
         </NotificationsProvider>
